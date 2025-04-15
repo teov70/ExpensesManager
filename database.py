@@ -125,6 +125,23 @@ def get_user_by_username(conn, username):
         )
     return None
 
+def get_all_users(conn):
+    """Get all users from the database"""
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users')
+
+    users = []
+    for row in cursor.fetchall():
+        users.append(User(
+            id = row['id'],
+            username=row['username'],
+            first_name=row['first_name'],
+            last_name=row['last_name'],
+            email=row['email'],
+            created_at=row['created_at']
+        ))
+    return users
+
 def update_user(conn, user):
     """Update a user's information"""
     with conn:
