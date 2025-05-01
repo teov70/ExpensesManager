@@ -3,11 +3,24 @@ import sqlite3
 import datetime
 from models import User, ExpenseGroup, Expense, ExpenseShare
 
+__all__ = [
+    "connect_db", "create_tables", "initialize_db",
+    "insert_user", "get_user_by_id", "get_user_by_username", "get_all_users",
+    "update_user", "delete_user",
+    "insert_expense_group", "get_expense_group", "get_user_groups", "update_expense_group", "delete_expense_group",
+    "add_group_member", "remove_group_member", "get_group_members",
+    "insert_expense", "get_expense", "get_group_expenses", "update_expense", "delete_expense",
+    "insert_expense_share", "get_expense_shares", "mark_share_as_paid",
+    "get_user_balances", "get_user_owes_whom"
+]
+
+
 # Database connection and initialization
 def connect_db(db_path='expenses.db'):
     """Create a connection to the SQLite database"""
     conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row  # This allows accessing columns by name
+    conn.execute("PRAGMA foreign_keys = ON")  # Enable foreign key constraints
     return conn
 
 def create_tables(conn):
@@ -22,7 +35,8 @@ def create_tables(conn):
         first_name TEXT,
         last_name TEXT,
         email TEXT,
-        created_at TIMESTAMP
+        created_at TIMESTAMP,
+        updated_at TIMESTAMP
     )
     ''')
     
@@ -34,6 +48,7 @@ def create_tables(conn):
         description TEXT,
         created_by INTEGER,
         created_at TIMESTAMP,
+        updated_at TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users (id)
     )
     ''')
@@ -48,6 +63,7 @@ def create_tables(conn):
         paid_by INTEGER,
         group_id INTEGER,
         created_at TIMESTAMP,
+        updated_at TIMESTAMP,
         FOREIGN KEY (paid_by) REFERENCES users (id),
         FOREIGN KEY (group_id) REFERENCES expense_groups (id)
     )
@@ -75,6 +91,7 @@ def create_tables(conn):
         amount REAL NOT NULL,
         is_paid BOOLEAN DEFAULT 0,
         created_at TIMESTAMP,
+        updated_at TIMESTAMP,
         FOREIGN KEY (expense_id) REFERENCES expenses (id),
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
@@ -145,16 +162,19 @@ def get_all_users(conn):
 def update_user(conn, user):
     """Update a user's information"""
     with conn:
-        conn.execute('''
+        cur = conn.execute('''
         UPDATE users
-        SET username = ?, first_name = ?, last_name = ?, email = ?
+        SET username = ?, first_name = ?, last_name = ?, email = ?, updated_at = ?
         WHERE id = ?
-        ''', (user.username, user.first_name, user.last_name, user.email, user.id))
+        ''', (user.username, user.first_name, user.last_name, user.email, datetime.datetime.now(), user.id))
+        return cur.rowcount > 0  # True if a row was updated
+
 
 def delete_user(conn, user_id):
     """Delete a user by their ID"""
     with conn:
-        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        cur = conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        return cur.rowcount > 0  # True if something was deleted
 
 # ExpenseGroup operations
 def insert_expense_group(conn, group):
@@ -182,6 +202,17 @@ def get_expense_group(conn, group_id):
         )
     return None
 
+def get_all_expense_groups(conn):
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM expense_groups')
+    return [ExpenseGroup(
+        id=row['id'],
+        name=row['name'],
+        description=row['description'],
+        created_by=row['created_by'],
+        created_at=row['created_at']
+    ) for row in cursor.fetchall()]
+
 def get_user_groups(conn, user_id):
     """Get all groups a user is a member of"""
     cursor = conn.cursor()
@@ -205,11 +236,12 @@ def get_user_groups(conn, user_id):
 def update_expense_group(conn, group):
     """Update an expense group's information"""
     with conn:
-        conn.execute('''
+        cur = conn.execute('''
         UPDATE expense_groups
-        SET name = ?, description = ?
+        SET name = ?, description = ?, updated_at = ?
         WHERE id = ?
-        ''', (group.name, group.description, group.id))
+        ''', (group.name, group.description, datetime.datetime.now(), group.id))
+        return cur.rowcount > 0
 
 def delete_expense_group(conn, group_id):
     """Delete an expense group by ID"""
@@ -311,12 +343,14 @@ def get_group_expenses(conn, group_id):
 def update_expense(conn, expense):
     """Update an expense's information"""
     with conn:
-        conn.execute('''
+        cur = conn.execute('''
         UPDATE expenses
-        SET description = ?, amount = ?, date = ?, paid_by = ?
+        SET description = ?, amount = ?, date = ?, paid_by = ?, updated_at = ?
         WHERE id = ?
         ''', (expense.description, expense.amount, expense.date, 
-              expense.paid_by, expense.id))
+              expense.paid_by, datetime.datetime.now(), expense.id))
+        return cur.rowcount > 0
+
 
 def delete_expense(conn, expense_id):
     """Delete an expense by ID"""
@@ -352,14 +386,28 @@ def get_expense_shares(conn, expense_id):
         ))
     return shares
 
+def update_expense_share(conn, share):
+    with conn:
+        cur = conn.execute('''
+        UPDATE expense_shares
+        SET amount = ?, is_paid = ?, updated_at = ?
+        WHERE id = ?
+        ''', (share.amount, share.is_paid, datetime.datetime.now(), share.id))
+        return cur.rowcount > 0
+
 def mark_share_as_paid(conn, share_id, is_paid=True):
     """Mark an expense share as paid or unpaid"""
     with conn:
-        conn.execute('''
+        cur = conn.execute('''
         UPDATE expense_shares
-        SET is_paid = ?
+        SET is_paid = ?, updated_at = ?
         WHERE id = ?
-        ''', (is_paid, share_id))
+        ''', (is_paid, datetime.datetime.now(), share_id))
+        return cur.rowcount > 0
+
+def delete_expense_share(conn, share_id):
+    with conn:
+        conn.execute('DELETE FROM expense_shares WHERE id = ?', (share_id,))
 
 def get_user_balances(conn, group_id, user_id):
     """Calculate how much a user owes or is owed in a group"""
@@ -422,3 +470,21 @@ def initialize_db(db_path='expenses.db'):
 if __name__ == "__main__":
     initialize_db()
     print("Database initialized successfully!")
+
+    def print_table_counts(conn):
+        cursor = conn.cursor()
+        for table in ['users', 'expense_groups', 'expenses', 'group_members', 'expense_shares']:
+            cursor.execute(f'SELECT COUNT(*) FROM {table}')
+            print(f"{table}: {cursor.fetchone()[0]}")
+
+    def print_sample_rows(conn, table, limit=5):
+        cursor = conn.cursor()
+        cursor.execute(f'SELECT * FROM {table} LIMIT {limit}')
+        for row in cursor.fetchall():
+            print(dict(row))
+
+
+    conn = connect_db()
+    print_table_counts(conn)
+    conn.close()
+

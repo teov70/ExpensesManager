@@ -1,0 +1,9 @@
+# Ignore the SQLite database
+*.db
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore VS Code settings
+.vscode/
