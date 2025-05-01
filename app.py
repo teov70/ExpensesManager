@@ -116,23 +116,50 @@ def get_all_users():
     finally:
         conn.close()
 
+def add_member(user_id, group_id):
+    """Add a user to an expense group
+    
+    Returns:
+        True if the user was added successfully, False otherwise
+    """
+    conn = get_db_connection()
+    try:
+        existing_user = db.get_user_by_id(conn, user_id)
+        if not existing_user:
+            print(f"User with ID {user_id} not found")
+            return False
+
+        db.add_group_member(conn, user_id, group_id)
+        return True
+    except Exception as e:
+        print(f"Error adding user to group: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 # Group Management Functions
 
-def create_group(name, description=None):
+def create_group(name, description=None, created_by=None):
     """Create a new expense group
-    
+
     Returns:
         The ID of the newly created group, or None if creation failed
     """
     conn = get_db_connection()
     try:
-        group = ExpenseGroup(name=name, description=description)
+        if created_by is None:
+            raise ValueError("created_by (user ID) is required to create a group.")
+
+        group = ExpenseGroup(name=name, description=description, created_by=created_by)
         group_id = db.insert_expense_group(conn, group)
-        return group_id 
+        return group_id
     except Exception as e:
         print(f"Error creating group: {e}")
+        return None
     finally:
         conn.close()
+
 
 # Expense Management Functions
 
