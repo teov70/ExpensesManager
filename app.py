@@ -116,28 +116,6 @@ def get_all_users():
     finally:
         conn.close()
 
-def add_member(user_id, group_id):
-    """Add a user to an expense group
-    
-    Returns:
-        True if the user was added successfully, False otherwise
-    """
-    conn = get_db_connection()
-    try:
-        existing_user = db.get_user_by_id(conn, user_id)
-        if not existing_user:
-            print(f"User with ID {user_id} not found")
-            return False
-
-        db.add_group_member(conn, user_id, group_id)
-        return True
-    except Exception as e:
-        print(f"Error adding user to group: {e}")
-        return False
-    finally:
-        conn.close()
-
-
 # Group Management Functions
 
 def create_group(name, description=None, created_by=None):
@@ -160,11 +138,122 @@ def create_group(name, description=None, created_by=None):
     finally:
         conn.close()
 
+def add_member(user_id, group_id):
+    """Add a user to an expense group
+    
+    Returns:
+        True if the user was added successfully, False otherwise
+    """
+    conn = get_db_connection()
+    try:
+        existing_user = db.get_user_by_id(conn, user_id)
+        if not existing_user:
+            print(f"User with ID {user_id} not found")
+            return False
+
+        db.add_group_member(conn, user_id, group_id)
+        return True
+    except Exception as e:
+        print(f"Error adding user to group: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_group_members(group_id):
+    """Fetch all users who are members of a specific group"""
+    conn = get_db_connection()
+    try:
+        return db.get_group_members(conn, group_id)
+    except Exception as e:
+        print(f"Error retrieving group members: {e}")
+        return []
+    finally:
+        conn.close()
 
 # Expense Management Functions
 
-#...need to add
+def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict=None):
+    """Create a new expense with shares
 
+    Returns:
+        The ID of the newly created expense, or None if creation failed
+    """
+    conn = get_db_connection()
+
+    try:
+        if group_id is None:
+            raise ValueError("group_id is required to create an expense.")
+        
+        if not shares_dict:
+            raise ValueError("At least one user must be assigned a share for this expense.")
+
+        members = db.get_group_members(conn, group_id)
+        valid_user_ids = {user.id for user in members}
+
+        expense = Expense(description=description, amount=amount, paid_by=paid_by, group_id=group_id)
+        expense_id = db.insert_expense(conn, expense)
+    
+        total_input_share = sum(shares_dict.values())
+        if total_input_share != amount:
+            raise ValueError("Shares must sum up to the total amount.")
+
+        for user_id, share in shares_dict.items():
+            if user_id not in valid_user_ids:
+                raise ValueError(f"User ID {user_id} is not a member of group {group_id}")
+        
+            is_paid = (user_id == paid_by)
+            
+            if total_input_share == 100:
+                share = amount * share / 100
+            
+            elif total_input_share == 0:
+                share = amount/len(shares_dict)
+            
+            expense_share = ExpenseShare(expense_id, user_id, share, is_paid)
+            db.insert_expense_share(conn, expense_share)
+        return expense_id
+
+    except Exception as e:
+        print(f"Error creating shares: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_group_expenses(group_id):
+    """Fetch all expenses for a specific group"""
+    conn = get_db_connection()
+    try:
+        return db.get_group_expenses(conn, group_id)
+    except Exception as e:
+        print(f"Error retrieving expenses: {e}")
+        return None
+    finally:
+        conn.close()
 # Balance and Settlement Functions
+def get_user_balance_summary(group_id, user_id):
+    """Get the balance of a user in a group."""
+    conn = get_db_connection()
+    try:
+        return db.get_user_owes_whom(conn, group_id, user_id)
+    
+    except Exception as e:
+        print(f"Error retrieving user's balance: {e}")
+        return None
+
+    finally:
+        conn.close()
+
+def get_user_debts(group_id, user_id):
+    """Get debts of a user in a group."""
+    conn = get_db_connection
+    try:
+        return db.get_user_owes_whom(conn, group_id, user_id)
+    
+    except Exception as e:
+        print(f"Error retrieving user's debts: {e}")
+        return None
+    
+    finally:
+        conn.close()
 
 #...need to add
