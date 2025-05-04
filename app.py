@@ -172,6 +172,17 @@ def get_group_members(group_id):
     finally:
         conn.close()
 
+def get_all_groups():
+    """Fetch all expense groups in the system"""
+    conn = get_db_connection()
+    try:
+        return db.get_all_expense_groups(conn)
+    except Exception as e:
+        print(f"Error retrieving groups: {e}")
+        return []
+    finally:
+        conn.close()
+
 # Expense Management Functions
 
 def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict=None):
