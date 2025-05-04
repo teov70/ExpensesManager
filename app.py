@@ -4,6 +4,8 @@ import datetime
 from models import User, ExpenseGroup, Expense, ExpenseShare
 import database as db
 
+db.initialize_db()
+
 # Constants
 DB_PATH = 'expenses.db'
 
