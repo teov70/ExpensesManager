@@ -19,7 +19,7 @@ class ExpenseManagerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Expense Manager v1")
-        self.root.geometry("600x500")
+        self.root.geometry("800x600")
         self.root.configure(bg=BG_COLOR)
 
         self.frames = {}
@@ -36,6 +36,20 @@ class ExpenseManagerApp:
         for frame in self.frames.values():
             frame.pack_forget()
         self.frames[name].pack(fill="both", expand=True)
+
+        self.refresh_groups_listbox()
+
+    def load_groups_listbox(self, listbox):
+        listbox.delete(0, tk.END)
+        groups = app.get_all_groups()
+        for group in groups:
+            listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
+    
+    def refresh_groups_listbox(self):
+        if hasattr(self, "existing_groups_listbox"):
+            self.load_groups_listbox(self.existing_groups_listbox)
+        if hasattr(self, "all_groups_listbox"):
+            self.load_groups_listbox(self.all_groups_listbox)
 
     def build_home_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
@@ -54,7 +68,7 @@ class ExpenseManagerApp:
     def build_user_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(frame, text="Create New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        tk.Label(frame, text="New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
         username_entry = labeled_entry(frame, "Username")
         first_name_entry = labeled_entry(frame, "First Name")
@@ -87,6 +101,10 @@ class ExpenseManagerApp:
             )
             if user_id:
                 messagebox.showinfo("Success", f"User created with ID {user_id}")
+                username_entry.delete(0, tk.END)
+                first_name_entry.delete(0, tk.END)
+                last_name_entry.delete(0, tk.END)
+                email_entry.delete(0, tk.END)
                 load_users()
             else:
                 messagebox.showerror("Error", "Failed to create user")
@@ -105,13 +123,26 @@ class ExpenseManagerApp:
 
         load_users()
 
+        def delete_selected_user():
+            selected = self.user_listbox.get(tk.ACTIVE)
+            if selected:
+                user_id = int(selected.split(":")[0])
+                if app.delete_user(user_id):
+                    messagebox.showinfo("Success", f"User with ID {user_id} deleted.")
+                    load_users()
+                else:
+                    messagebox.showerror("Error", "Failed to delete user.")
+        
+        tk.Button(frame, text="Delete Selected", command=delete_selected_user,
+          bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+
         tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         return frame
 
     def build_group_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(frame, text="Create New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        tk.Label(frame, text="New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
         name_entry = labeled_entry(frame, "Group Name")
         desc_entry = labeled_entry(frame, "Description")
@@ -122,8 +153,8 @@ class ExpenseManagerApp:
         tk.Label(frame, text="Creator (Username)", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
         creator_dropdown.pack()
 
-        self.group_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
-        self.group_listbox.pack(pady=5)
+        self.existing_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.existing_groups_listbox.pack(pady=5)
 
         def load_users_for_dropdown():
             users = app.get_all_users()
@@ -143,7 +174,7 @@ class ExpenseManagerApp:
             name = name_entry.get().strip()
             description = desc_entry.get().strip()
 
-            if not name or not re.match(r'^[a-zA-Z0-9._- ]+$', name):
+            if not name or not re.match(r'^[a-zA-Z0-9._ -]+$', name):
                 messagebox.showerror("Validation Error", "Group name must contain only letters, numbers, spaces or . - _")
                 return
 
@@ -154,18 +185,14 @@ class ExpenseManagerApp:
             )
             if group_id:
                 messagebox.showinfo("Success", f"Group created with ID {group_id}")
-                self.load_groups_listbox(self.group_listbox)
+                name_entry.delete(0, tk.END)
+                desc_entry.delete(0, tk.END)
+                self.load_groups_listbox(self.existing_groups_listbox)
             else:
                 messagebox.showerror("Error", "Failed to create group")
 
-        def load_groups_listbox():
-            self.group_listbox.delete(0, tk.END)
-            groups = app.get_all_groups()
-            for group in groups:
-                self.group_listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
-
         load_users_for_dropdown()
-        load_groups_listbox()
+        self.load_groups_listbox(self.existing_groups_listbox)
 
         tk.Button(frame, text="Submit", command=submit_group, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
@@ -176,24 +203,30 @@ class ExpenseManagerApp:
 
         tk.Label(frame, text="All Expense Groups", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        self.group_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
-        self.group_listbox.pack(pady=5)
-
-        def load_groups_listbox():
-            self.group_listbox.delete(0, tk.END)
-            groups = app.get_all_groups()
-            for group in groups:
-                self.group_listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
+        self.all_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.all_groups_listbox.pack(pady=5)
 
         def access_selected_group():
-            selected = self.group_listbox.get(tk.ACTIVE)
+            selected = self.all_groups_listbox.get(tk.ACTIVE)
             if selected:
                 group_id = int(selected.split(":")[0])
                 self.open_group(group_id)
 
-        load_groups_listbox()
+        def delete_selected_group():
+            selected = self.all_groups_listbox.get(tk.ACTIVE)
+            if selected:
+                group_id = int(selected.split(":")[0])
+                if app.delete_group(group_id):
+                    messagebox.showinfo("Success", f"Group with ID {group_id} deleted.")
+                    self.load_groups_listbox(self.all_groups_listbox)
+                else:
+                    messagebox.showerror("Error", "Failed to delete group.")
 
-        tk.Button(frame, text="Open Selected Group", command=access_selected_group,
+        self.load_groups_listbox(self.all_groups_listbox)
+
+        tk.Button(frame, text="Open Selected", command=access_selected_group,
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Delete Selected", command=delete_selected_group,
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("home"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)

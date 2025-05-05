@@ -183,6 +183,26 @@ def get_all_groups():
     finally:
         conn.close()
 
+def delete_group(group_id):
+    """Delete a group by group ID
+    Returns:
+        True if deletion was successful, False otherwise
+    """
+    conn = get_db_connection()
+    try:
+        existing_group = db.get_expense_group(conn, group_id)
+        if not existing_group:
+            print(f"Group with ID {group_id} not found")
+            return False
+        
+        db.delete_expense_group(conn, group_id)
+        return True
+    except Exception as e:
+        print(f"Error deleting group: {e}")
+        return False
+    finally:
+        conn.close()
+
 # Expense Management Functions
 
 def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict=None):
