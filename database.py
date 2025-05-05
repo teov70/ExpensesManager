@@ -32,8 +32,8 @@ def create_tables(conn):
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
         username TEXT NOT NULL UNIQUE,
-        first_name TEXT,
-        last_name TEXT,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
         email TEXT,
         created_at TIMESTAMP,
         updated_at TIMESTAMP

@@ -1,11 +1,19 @@
 import tkinter as tk
 from tkinter import messagebox
 import app
+import re
 
 # === Theme Settings ===
 BG_COLOR = "#1e1e1e"
 FG_COLOR = "#00ff00"
 FONT = ("Courier", 10)
+
+# === Reusable Widgets ===
+def labeled_entry(parent, label_text):
+    tk.Label(parent, text=label_text, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+    entry = tk.Entry(parent, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
+    entry.pack()
+    return entry
 
 class ExpenseManagerApp:
     def __init__(self, root):
@@ -14,58 +22,79 @@ class ExpenseManagerApp:
         self.root.geometry("600x500")
         self.root.configure(bg=BG_COLOR)
 
-        self.create_home_screen()
+        self.frames = {}
+        self.init_frames()
+        self.show_frame("home")
 
-    def clear_screen(self):
-        for widget in self.root.winfo_children():
-            widget.destroy()
+    def init_frames(self):
+        self.frames["home"] = self.build_home_frame()
+        self.frames["user"] = self.build_user_frame()
+        self.frames["group"] = self.build_group_frame()
+        self.frames["all_groups"] = self.build_all_groups_frame()
 
-    def create_home_screen(self):
-        self.clear_screen()
+    def show_frame(self, name):
+        for frame in self.frames.values():
+            frame.pack_forget()
+        self.frames[name].pack(fill="both", expand=True)
 
-        tk.Label(self.root, text="Expense Manager v1", font=("Courier", 14, "bold"),
-                 bg=BG_COLOR, fg=FG_COLOR).pack(pady=20)
+    def build_home_frame(self):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Button(self.root, text="Create User", command=self.user_menu,
+        tk.Label(frame, text="Expense Manager v1", font=("Courier", 14, "bold"), bg=BG_COLOR, fg=FG_COLOR).pack(pady=20)
+
+        tk.Button(frame, text="Create User", command=lambda: self.show_frame("user"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
-        tk.Button(self.root, text="Create Group", command=self.group_menu,
+        tk.Button(frame, text="Create Group", command=lambda: self.show_frame("group"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
-        tk.Button(self.root, text="View All Groups", command=self.all_groups_menu,
+        tk.Button(frame, text="View All Groups", command=lambda: self.show_frame("all_groups"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
 
-    def user_menu(self):
-        self.clear_screen()
+        return frame
 
-        tk.Label(self.root, text="Create New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+    def build_user_frame(self):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        username_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-        first_name_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-        last_name_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-        email_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
+        tk.Label(frame, text="Create New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
-        for label, entry in zip(["Username", "First Name", "Last Name", "Email"],
-                                [username_entry, first_name_entry, last_name_entry, email_entry]):
-            tk.Label(self.root, text=label, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
-            entry.pack()
+        username_entry = labeled_entry(frame, "Username")
+        first_name_entry = labeled_entry(frame, "First Name")
+        last_name_entry = labeled_entry(frame, "Last Name")
+        email_entry = labeled_entry(frame, "Email")
 
         def submit_user():
+            username = username_entry.get().strip()
+            first_name = first_name_entry.get().strip()
+            last_name = last_name_entry.get().strip()
+            email = email_entry.get().strip()
+            
+            if not username or not re.match(r'^[a-zA-Z0-9._-]+$', username):
+                messagebox.showerror("Validation Error", "Username must contain only letters, numbers, dots, dashes or underscores — no spaces.")
+                return
+            
+            if not all(name and re.match(r'^[a-zA-Z]+$', name) for name in (first_name, last_name)):
+                messagebox.showerror("Validation Error", "Name must contain only letters.")
+                return
+            
+            if email and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                messagebox.showerror("Validation Error", "Email not valid.")
+                return
+            
             user_id = app.create_user(
-                username=username_entry.get(),
-                first_name=first_name_entry.get(),
-                last_name=last_name_entry.get(),
-                email=email_entry.get()
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email
             )
             if user_id:
                 messagebox.showinfo("Success", f"User created with ID {user_id}")
-                self.user_menu()
+                load_users()
             else:
                 messagebox.showerror("Error", "Failed to create user")
 
-        tk.Button(self.root, text="Submit", command=submit_user,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Submit", command=submit_user, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
 
-        tk.Label(self.root, text="Existing Users:", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=(10, 0))
-        self.user_listbox = tk.Listbox(self.root, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        tk.Label(frame, text="Existing Users:", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=(10, 0))
+        self.user_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
         self.user_listbox.pack(pady=5)
 
         def load_users():
@@ -76,24 +105,25 @@ class ExpenseManagerApp:
 
         load_users()
 
-        tk.Button(self.root, text="Back", command=self.create_home_screen,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        return frame
 
-    def group_menu(self):
-        self.clear_screen()
-        tk.Label(self.root, text="Create New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+    def build_group_frame(self):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        name_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-        desc_entry = tk.Entry(self.root, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
+        tk.Label(frame, text="Create New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
-        creator_var = tk.StringVar(self.root)
-        creator_dropdown = tk.OptionMenu(self.root, creator_var, "")
+        name_entry = labeled_entry(frame, "Group Name")
+        desc_entry = labeled_entry(frame, "Description")
+
+        creator_var = tk.StringVar(frame)
+        creator_dropdown = tk.OptionMenu(frame, creator_var, "")
         creator_dropdown.config(bg=BG_COLOR, fg=FG_COLOR, font=FONT, highlightthickness=0)
+        tk.Label(frame, text="Creator (Username)", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        creator_dropdown.pack()
 
-        for label, widget in zip(["Group Name", "Description", "Creator (Username)"],
-                                [name_entry, desc_entry, creator_dropdown]):
-            tk.Label(self.root, text=label, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
-            widget.pack()
+        self.group_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.group_listbox.pack(pady=5)
 
         def load_users_for_dropdown():
             users = app.get_all_users()
@@ -110,64 +140,64 @@ class ExpenseManagerApp:
             selected_user = next((u for u in users if f"{u.username} ({u.first_name} {u.last_name})" == selected_label), None)
             created_by = selected_user.id if selected_user else None
 
+            name = name_entry.get().strip()
+            description = desc_entry.get().strip()
+
+            if not name or not re.match(r'^[a-zA-Z0-9._- ]+$', name):
+                messagebox.showerror("Validation Error", "Group name must contain only letters, numbers, spaces or . - _")
+                return
+
             group_id = app.create_group(
-                name=name_entry.get(),
-                description=desc_entry.get(),
+                name=name,
+                description=description,
                 created_by=created_by
             )
             if group_id:
                 messagebox.showinfo("Success", f"Group created with ID {group_id}")
-                load_groups()
+                self.load_groups_listbox(self.group_listbox)
             else:
                 messagebox.showerror("Error", "Failed to create group")
 
-        load_users_for_dropdown()
-
-        tk.Button(self.root, text="Submit", command=submit_group,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
-
-        tk.Label(self.root, text="Groups:", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=(10, 0))
-        self.group_listbox = tk.Listbox(self.root, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
-        self.group_listbox.pack(pady=5)
-
-        def load_groups():
+        def load_groups_listbox():
             self.group_listbox.delete(0, tk.END)
             groups = app.get_all_groups()
             for group in groups:
                 self.group_listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
 
-        load_groups()
+        load_users_for_dropdown()
+        load_groups_listbox()
 
-        tk.Button(self.root, text="Back", command=self.create_home_screen,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Submit", command=submit_group, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        return frame
 
-    def all_groups_menu(self):
-        self.clear_screen()
+    def build_all_groups_frame(self):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(self.root, text="All Expense Groups", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+        tk.Label(frame, text="All Expense Groups", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        self.group_listbox = tk.Listbox(self.root, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.group_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
         self.group_listbox.pack(pady=5)
 
-        def load_all_groups():
+        def load_groups_listbox():
             self.group_listbox.delete(0, tk.END)
             groups = app.get_all_groups()
             for group in groups:
                 self.group_listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
 
         def access_selected_group():
-            selected = self.group_listbox.get(tk.ACTive)
+            selected = self.group_listbox.get(tk.ACTIVE)
             if selected:
                 group_id = int(selected.split(":")[0])
                 self.open_group(group_id)
 
-        load_all_groups()
+        load_groups_listbox()
 
-        tk.Button(self.root, text="Open Selected Group", command=access_selected_group,
+        tk.Button(frame, text="Open Selected Group", command=access_selected_group,
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
-
-        tk.Button(self.root, text="Back", command=self.create_home_screen,
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        return frame
 
     def open_group(self, group_id):
         self.clear_screen()
