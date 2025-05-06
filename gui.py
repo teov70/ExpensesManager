@@ -29,6 +29,7 @@ class ExpenseManagerApp:
         self.dynamic_builders = {
             "selected_group": self.build_open_group_frame,
             "add_users": self.build_add_users_frame,
+            "create_expense": self.build_create_expense_frame,
             # more to be added...
         }
 
@@ -275,7 +276,7 @@ class ExpenseManagerApp:
         tk.Label(frame, text=group_info.name, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Label(frame, text=group_info.description, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
 
-        # Fetch and show current group members
+        # Fetch and show current group members, manage group members
         members = app.get_group_members(group_id)
 
         member_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
@@ -293,10 +294,30 @@ class ExpenseManagerApp:
 
         tk.Button(frame, text="Manage Members", command =lambda: self.open_dynamic_frame("add_users", group_id=group_id),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
-        tk.Button(frame, text="New Expense",
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        
+        # Show and manage expenses
+
+        def load_expenses_listbox(listbox, group_id):
+            listbox.delete(0, tk.END)
+            expenses = app.get_group_expenses(group_id)
+            if expenses:
+                for expense in expenses:
+                    payer = app.get_user(expense.paid_by)
+                    listbox.insert(tk.END, f"{expense.date}  {expense.description} {expense.amount:.2f}€  Paid by: {payer.username}")
+
+
+        tk.Label(frame, text="All Expenses", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+
+        self.expenses_listbox = tk.Listbox(frame, width=80, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.expenses_listbox.pack(pady=5)
+        load_expenses_listbox(self.expenses_listbox, group_id)
+
+        tk.Button(frame, text="New Expense", 
+                command=lambda: self.open_dynamic_frame("create_expense",group_id=group_id),
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("all_groups"),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+    
         return frame
 
     def build_add_users_frame(self, group_id=None, **kwargs):
