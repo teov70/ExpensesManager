@@ -140,7 +140,7 @@ def create_group(name, description=None, created_by=None):
     finally:
         conn.close()
 
-def add_member(user_id, group_id):
+def add_member(group_id, user_id):
     """Add a user to an expense group
     
     Returns:
@@ -153,10 +153,31 @@ def add_member(user_id, group_id):
             print(f"User with ID {user_id} not found")
             return False
 
-        db.add_group_member(conn, user_id, group_id)
+        db.add_group_member(conn, group_id, user_id)
         return True
     except Exception as e:
         print(f"Error adding user to group: {e}")
+        return False
+    finally:
+        conn.close()
+
+def remove_member(group_id, user_id):
+    """Remove a user from an expense group
+    
+    Returns:
+        True if the user was removed successfully, False otherwise
+    """
+    conn = get_db_connection()
+    try:
+        existing_user = db.get_user_by_id(conn, user_id)
+        if not existing_user:
+            print(f"User with ID {user_id} not found")
+            return False
+
+        db.remove_group_member(conn, group_id, user_id)
+        return True
+    except Exception as e:
+        print(f"Error removing user from group: {e}")
         return False
     finally:
         conn.close()
@@ -204,6 +225,21 @@ def delete_group(group_id):
         conn.close()
 
 # Expense Management Functions
+
+def get_expense_group(group_id):
+    """Get expense group by ID
+    Returns:
+        An ExpenseGroup object if found, None otherwise 
+    """
+    conn = get_db_connection()
+    try:
+        group = db.get_expense_group(conn, group_id)
+        return group
+    except Exception as e:
+        print(f"Error retrieving group: {e}")
+        return None
+    finally:
+        conn.close()
 
 def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict=None):
     """Create a new expense with shares
