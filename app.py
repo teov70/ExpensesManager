@@ -242,6 +242,53 @@ def get_expense_group(group_id):
     finally:
         conn.close()
 
+def get_expense(expense_id):
+    """Get expense by ID
+    Returns:
+        An Expense object if found, None otherwise 
+    """
+    conn = get_db_connection()
+    try:
+        expense = db.get_expense(conn, expense_id)
+        return expense
+    except Exception as e:
+        print(f"Error retrieving expense: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_expense_shares(expense_id):
+    """Get all shares for a specific expense"""
+    conn = get_db_connection()
+    try:
+        shares = db.get_expense_shares(conn, expense_id)
+        return shares
+    except Exception as e:
+        print(f"Error retrieving expense shares: {e}")
+        return []
+    finally:
+        conn.close()
+
+def delete_expense(expense_id):
+    """Delete an expense by ID
+    Returns:
+        True if deletion was successful, False otherwise
+    """
+    conn = get_db_connection()
+    try:
+        existing_expense = db.get_expense(conn, expense_id)
+        if not existing_expense:
+            print(f"[Delete Skipped] Expense with ID {expense_id} not found")
+            return False
+        
+        db.delete_expense(conn, expense_id)
+        return True
+    except Exception as e:
+        print(f"Error deleting expense: {e}")
+        return False
+    finally:
+        conn.close()
+
 def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict):
     """Create a new expense with shares
 

@@ -59,7 +59,8 @@ class ExpenseManagerApp:
         listbox.delete(0, tk.END)
         groups = app.get_all_groups()
         for group in groups:
-            listbox.insert(tk.END, f"{group.id}: {group.name} (created by {group.created_by})")
+            creator = app.get_user(group.created_by)
+            listbox.insert(tk.END, f"{group.id}: {group.name} (created by {creator.username})")
 
     def load_users_dropdown(self, menu_widget, string_var):
             users = app.get_all_users()
@@ -252,13 +253,25 @@ class ExpenseManagerApp:
 
         def delete_selected_group():
             selected = self.all_groups_listbox.get(tk.ACTIVE)
-            if selected:
-                group_id = int(selected.split(":")[0])
-                if app.delete_group(group_id):
-                    messagebox.showinfo("Success", f"Group with ID {group_id} deleted.")
-                    self.load_groups_listbox(self.all_groups_listbox)
-                else:
-                    messagebox.showerror("Error", "Failed to delete group.")
+            if not selected:
+                return
+
+            group_id = int(selected.split(":")[0])
+            members = app.get_group_members(group_id)
+
+            if members:
+                confirm = messagebox.askyesno(
+                    "Confirm Deletion",
+                    "This group has members. Deleting it will also remove all expenses and shares.\nAre you sure you want to continue?"
+                )
+                if not confirm:
+                    return
+
+            if app.delete_group(group_id):
+                messagebox.showinfo("Success", f"Group with ID {group_id} deleted.")
+                self.load_groups_listbox(self.all_groups_listbox)
+            else:
+                messagebox.showerror("Error", "Failed to delete group.")
 
         self.load_groups_listbox(self.all_groups_listbox)
 
@@ -297,13 +310,31 @@ class ExpenseManagerApp:
         
         # Show and manage expenses
 
+        expense_ids = [] # Local list to track hidden expense IDs
         def load_expenses_listbox(listbox, group_id):
             listbox.delete(0, tk.END)
+            expense_ids.clear()
+
             expenses = app.get_group_expenses(group_id)
             if expenses:
+                def format(text, width):
+                    return (text[:width - 1] + '…') if len(text) > width else text.ljust(width)
+
                 for expense in expenses:
-                    payer = app.get_user(expense.paid_by)
-                    listbox.insert(tk.END, f"{expense.date}     {expense.description}      {expense.amount:.2f}€       Paid by: {payer.username}")
+                    payer_user = app.get_user(expense.paid_by)
+                    payer = format(payer_user.username, 11)
+                    desc = format(expense.description, 11)
+                    amount = f"{expense.amount:6.2f}€"
+
+                    shares = app.get_expense_shares(expense.id)
+                    unpaid = sum(share.amount for share in shares if not share.is_paid)
+                    
+                    owed_summary = f"{payer} is owed:" if unpaid > 0 else ""
+                    owed_total = f"{unpaid:6.2f}€" if unpaid > 0 else ""
+
+                    display = f"    {expense.date}  {desc} | {payer} paid: {amount} | {owed_summary} {owed_total}"
+                    listbox.insert(tk.END, display)
+                    expense_ids.append(expense.id)
 
         def open_create_expense():
             if not app.get_group_members(group_id):
@@ -314,13 +345,29 @@ class ExpenseManagerApp:
                 return
             self.open_dynamic_frame("create_expense", group_id=group_id)
 
+        def delete_selected_expense():
+            selected = self.expenses_listbox.curselection()
+            if not selected:
+                return
+            idx = int(selected[0])
+            expense_id = expense_ids[idx]
+
+            if messagebox.askyesno("Confirm", "Delete this expense and all its shares?"):
+                if app.delete_expense(expense_id):
+                    messagebox.showinfo("Deleted", "Expense deleted.")
+                    load_expenses_listbox(self.expenses_listbox, group_id)
+                else:
+                    messagebox.showerror("Error", "Could not delete expense.")
+
         tk.Label(frame, text="All Expenses", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        self.expenses_listbox = tk.Listbox(frame, width=80, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.expenses_listbox = tk.Listbox(frame, width=90, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
         self.expenses_listbox.pack(pady=5)
         load_expenses_listbox(self.expenses_listbox, group_id)
 
         tk.Button(frame, text="New Expense", command=open_create_expense,
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Delete Selected Expense", command=delete_selected_expense,
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("all_groups"),
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)

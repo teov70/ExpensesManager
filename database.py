@@ -65,7 +65,7 @@ def create_tables(conn):
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
         FOREIGN KEY (paid_by) REFERENCES users (id),
-        FOREIGN KEY (group_id) REFERENCES expense_groups (id)
+        FOREIGN KEY (group_id) REFERENCES expense_groups (id) ON DELETE CASCADE
     )
     ''')
     
@@ -76,7 +76,7 @@ def create_tables(conn):
         group_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         joined_at TIMESTAMP NOT NULL,
-        FOREIGN KEY (group_id) REFERENCES expense_groups (id),
+        FOREIGN KEY (group_id) REFERENCES expense_groups (id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users (id),
         UNIQUE(group_id, user_id)
     )
@@ -92,7 +92,7 @@ def create_tables(conn):
         is_paid BOOLEAN DEFAULT 0,
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        FOREIGN KEY (expense_id) REFERENCES expenses (id),
+        FOREIGN KEY (expense_id) REFERENCES expenses (id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     ''')
