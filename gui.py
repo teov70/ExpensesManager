@@ -303,8 +303,16 @@ class ExpenseManagerApp:
             if expenses:
                 for expense in expenses:
                     payer = app.get_user(expense.paid_by)
-                    listbox.insert(tk.END, f"{expense.date}  {expense.description} {expense.amount:.2f}€  Paid by: {payer.username}")
+                    listbox.insert(tk.END, f"{expense.date}     {expense.description}      {expense.amount:.2f}€       Paid by: {payer.username}")
 
+        def open_create_expense():
+            if not app.get_group_members(group_id):
+                messagebox.showerror(
+                    "Error",
+                    "Group has no members - add users first."
+                )
+                return
+            self.open_dynamic_frame("create_expense", group_id=group_id)
 
         tk.Label(frame, text="All Expenses", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
@@ -312,8 +320,7 @@ class ExpenseManagerApp:
         self.expenses_listbox.pack(pady=5)
         load_expenses_listbox(self.expenses_listbox, group_id)
 
-        tk.Button(frame, text="New Expense", 
-                command=lambda: self.open_dynamic_frame("create_expense",group_id=group_id),
+        tk.Button(frame, text="New Expense", command=open_create_expense,
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("all_groups"),
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
@@ -361,6 +368,90 @@ class ExpenseManagerApp:
 
         return frame
 
+    def build_create_expense_frame(self, group_id=None, **kwargs):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
+
+        # ---------- Data ----------
+        group    = app.get_expense_group(group_id)
+        members  = app.get_group_members(group_id)          # list[User]
+        if not members:
+            messagebox.showerror("Error", "Group has no members - add users first.")
+            self.open_dynamic_frame("selected_group", group_id=group_id)
+            return frame
+
+        # ---------- UI ----------
+        tk.Label(frame, text=f"New Expense for '{group.name}'", bg=BG_COLOR,
+                fg=FG_COLOR, font=FONT).pack(pady=10)
+
+        description_entry = labeled_entry(frame, "Description")
+        amount_entry      = labeled_entry(frame, "Total Amount (€)")
+
+        # -- payer dropdown (simple OptionMenu style) ----------------
+        payer_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
+        payer_var    = tk.StringVar(frame)
+        payer_var.set(payer_labels[0])                      # default select
+        payer_dropdown = tk.OptionMenu(frame, payer_var, *payer_labels)
+        payer_dropdown.config(bg=BG_COLOR, fg=FG_COLOR, font=FONT, highlightthickness=0)
+
+        tk.Label(frame, text="Paid by", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        payer_dropdown.pack(pady=5)
+
+        # helper: map label → user.id  (so we can get id back later)
+        label_to_uid = {label: user.id for label, user in zip(payer_labels, members)}
+
+        # ---------- submit ----------
+        def submit_expense():
+            desc  = description_entry.get().strip()
+            amt_s = amount_entry.get().strip()
+            label = payer_var.get()
+            payer_id = label_to_uid.get(label)
+
+            # --- validation ---
+            if not desc:
+                messagebox.showerror("Validation Error", "Description is required.")
+                return
+            try:
+                amount = float(amt_s)
+            except ValueError:
+                messagebox.showerror("Validation Error", "Amount must be a number.")
+                return
+            if amount <= 0:
+                messagebox.showerror("Validation Error", "Amount must be positive.")
+                return
+            if amount > 1_000_000_000:
+                messagebox.showerror("Validation Error",
+                                    "Amount can't exceed 1 000 000 000 €.")
+                return
+
+            # --- even‑split shares (all zeros) ---------------
+            shares_dict = {member.id: 0 for member in members}
+
+            expense_id = app.create_expense_with_shares(
+                description = desc,
+                amount      = amount,
+                paid_by     = payer_id,
+                group_id    = group_id,
+                shares_dict = shares_dict
+            )
+
+            if not expense_id:
+                messagebox.showerror("Error",
+                                    "Failed to create expense - see console for details.")
+                return
+
+            messagebox.showinfo("Success", "Expense added and split evenly!")
+            # refresh group view
+            self.open_dynamic_frame("selected_group", group_id=group_id)
+
+        tk.Button(frame, text="Add Expense", command=submit_expense,
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+
+        tk.Button(frame, text="Back",
+                command=lambda: self.open_dynamic_frame("selected_group",
+                                                        group_id=group_id),
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+
+        return frame
 
 # Start app
 if __name__ == "__main__":

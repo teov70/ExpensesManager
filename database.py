@@ -46,7 +46,7 @@ def create_tables(conn):
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-        created_by INTEGER,
+        created_by INTEGER NOT NULL,
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users (id)
@@ -57,11 +57,11 @@ def create_tables(conn):
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY,
-        description TEXT,
+        description TEXT NOT NULL,
         amount REAL NOT NULL,
-        date TIMESTAMP,
-        paid_by INTEGER,
-        group_id INTEGER,
+        date DATE NOT NULL,
+        paid_by INTEGER NOT NULL,
+        group_id INTEGER NOT NULL,
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
         FOREIGN KEY (paid_by) REFERENCES users (id),
@@ -73,9 +73,9 @@ def create_tables(conn):
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS group_members (
         id INTEGER PRIMARY KEY,
-        group_id INTEGER,
-        user_id INTEGER,
-        joined_at TIMESTAMP,
+        group_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        joined_at TIMESTAMP NOT NULL,
         FOREIGN KEY (group_id) REFERENCES expense_groups (id),
         FOREIGN KEY (user_id) REFERENCES users (id),
         UNIQUE(group_id, user_id)
@@ -86,8 +86,8 @@ def create_tables(conn):
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS expense_shares (
         id INTEGER PRIMARY KEY,
-        expense_id INTEGER,
-        user_id INTEGER,
+        expense_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
         amount REAL NOT NULL,
         is_paid BOOLEAN DEFAULT 0,
         created_at TIMESTAMP,
@@ -326,7 +326,6 @@ def get_group_expenses(conn, group_id):
     """Get all expenses for a group"""
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM expenses WHERE group_id = ?', (group_id,))
-    
     expenses = []
     for row in cursor.fetchall():
         expenses.append(Expense(

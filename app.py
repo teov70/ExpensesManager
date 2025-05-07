@@ -3,6 +3,7 @@ import sqlite3
 import datetime
 from models import User, ExpenseGroup, Expense, ExpenseShare
 import database as db
+import traceback
 
 db.initialize_db()
 
@@ -241,49 +242,64 @@ def get_expense_group(group_id):
     finally:
         conn.close()
 
-def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict=None):
+def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict):
     """Create a new expense with shares
 
     Returns:
         The ID of the newly created expense, or None if creation failed
     """
+    if group_id is None:
+        raise ValueError("group_id is required.")
+    if not shares_dict:
+        raise ValueError("shares_dict cannot be empty.")
+    if amount <= 0:
+        raise ValueError("amount must be positive.")
+
     conn = get_db_connection()
-
     try:
-        if group_id is None:
-            raise ValueError("group_id is required to create an expense.")
-        
-        if not shares_dict:
-            raise ValueError("At least one user must be assigned a share for this expense.")
+        members         = db.get_group_members(conn, group_id)
+        valid_user_ids  = {u.id for u in members}
 
-        members = db.get_group_members(conn, group_id)
-        valid_user_ids = {user.id for user in members}
+        if paid_by not in valid_user_ids:
+            raise ValueError("paid_by user is not a member of this group.")
+
+        # ----- prepare shares -------------------------------------------------
+        total_input = sum(shares_dict.values())
+
+        if total_input == 100:                      # percentages
+            for uid in shares_dict:
+                shares_dict[uid] = amount * shares_dict[uid] / 100
+
+        elif total_input == 0:                      # even split
+            if set(shares_dict.keys()) != valid_user_ids:
+                raise ValueError("For even split, include every member in shares_dict")
+            even = amount / len(shares_dict)
+            for uid in shares_dict:
+                shares_dict[uid] = even
+
+        actual_sum = sum(shares_dict.values())
+        if abs(actual_sum - amount) > 1e-3:
+            raise ValueError("Shares must sum to total amount.")
+
+        # ----------------------------------------------------------------------
+        conn.execute("BEGIN")                       # atomic block
 
         expense = Expense(description=description, amount=amount, paid_by=paid_by, group_id=group_id)
         expense_id = db.insert_expense(conn, expense)
-    
-        total_input_share = sum(shares_dict.values())
-        if total_input_share != amount:
-            raise ValueError("Shares must sum up to the total amount.")
 
-        for user_id, share in shares_dict.items():
-            if user_id not in valid_user_ids:
-                raise ValueError(f"User ID {user_id} is not a member of group {group_id}")
-        
-            is_paid = (user_id == paid_by)
-            
-            if total_input_share == 100:
-                share = amount * share / 100
-            
-            elif total_input_share == 0:
-                share = amount/len(shares_dict)
-            
-            expense_share = ExpenseShare(expense_id, user_id, share, is_paid)
+        for uid, share in shares_dict.items():
+            if share < 0:
+                raise ValueError("Share values must be non‑negative.")
+            is_paid = (uid == paid_by)
+            expense_share = ExpenseShare(expense_id=expense_id, user_id=uid, amount=share, is_paid=is_paid)
             db.insert_expense_share(conn, expense_share)
+
+        conn.commit()
         return expense_id
 
     except Exception as e:
-        print(f"Error creating shares: {e}")
+        conn.rollback()
+        print("Error creating shares:", e)
         return None
     finally:
         conn.close()
@@ -295,9 +311,11 @@ def get_group_expenses(group_id):
         return db.get_group_expenses(conn, group_id)
     except Exception as e:
         print(f"Error retrieving expenses: {e}")
+        traceback.print_exc()
         return None
     finally:
         conn.close()
+        
 # Balance and Settlement Functions
 def get_user_balance_summary(group_id, user_id):
     """Get the balance of a user in a group."""
