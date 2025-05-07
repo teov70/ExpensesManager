@@ -46,7 +46,7 @@ class ExpenseManagerApp:
         self.apply_theme()
         self.apply_font()
         self.root.title("Expense Manager v1")
-        self.root.iconbitmap("icon_black_multi.ico")
+        self.root.iconbitmap("ExpenseManager.ico")
         self.root.geometry("800x650")
         self.root.configure(bg=BG_COLOR)
 
