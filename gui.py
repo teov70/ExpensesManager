@@ -4,32 +4,58 @@ import app
 import re
 
 # === Theme Settings ===
-BG_COLOR = "#1e1e1e"
-FG_COLOR = "#00ff00"
-OH_COLOR = "#0f420f"
+THEMES = {
+    "Classic": {"bg": "#1e1e1e", "fg": "#00ff00", "oh": "#4d824d"},   # Hacker default
+    "Accent": {"bg": "#281e36", "fg": "#00ffae", "oh": "#574275"},    # Subtle hacker
+    "BSOD": {"bg": "#000088", "fg": "#ffffff", "oh": "#858585"},      # Blue Screen of Death
+    "Barbie": {"bg": "#fcb8eb", "fg": "#ff1493", "oh": "#ffd4e6"},    # Pink paradise
 
-#BG_COLOR = "#281e36"
-#FG_COLOR = "#00ffae"
-#OH_COLOR = "#0d4735"
-FONT = ("Courier", 11)
+    "Commodore64": {"bg": "#40318d", "fg": "#a5a5ff", "oh": "#7869c4"},  # Retro 8-bit
+    "Matrix": {"bg": "#000000", "fg": "#00ff00", "oh": "#003b00"},       # Neo-approved
+    "Vaporwave": {"bg": "#ff71ce", "fg": "#05ffa1", "oh": "#b967ff"},    # Neon nostalgia
+    "FrutigerAero": {"bg": "#93e046", "fg": "#007ca6", "oh": "#a2cfe0"},  # Fresh 2000s aesthetic
+    "PumpkinSpice": {"bg": "#331800", "fg": "#ffa500", "oh": "#663300"}, # Autumn vibes
+    "Fallout": {"bg": "#003b3b", "fg": "#18ff00", "oh": "#007070"},      # Vault-tec terminal
+    "Coffee": {"bg": "#4b3621", "fg": "#d2b48c", "oh": "#6e5534"},       # Late-night coding
+    "Cyberpunk": {"bg": "#2a2139", "fg": "#ff2a6d", "oh": "#5c3b6e"},    # Night City
+    "Windows95": {"bg": "#c3c7cb", "fg": "#000080", "oh": "#e7e8ea"},    # Nostalgia overload
+    "AmericanPsycho": {"bg": "#edebdd", "fg": "#1f1e1d", "oh": "#d65747"}
+}
 
-# === Reusable Widgets ===
-def labeled_entry(parent, label_text):
-    tk.Label(parent, text=label_text, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
-    entry = tk.Entry(parent, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-    entry.pack()
-    return entry
+FONTS = {
+    "Default":  None,
+    "Courier":  "Courier New",
+    "Consolas": "Consolas",
+    "Cascadia": "Cascadia Mono",
+    "Segoe":    "Segoe UI Mono",
+    "Helvetica": "Helvetica",
+    "Verdana": "Verdana"
+}
+FONT_SIZES = {"S": 10, "M": 11, "L": 12, "XL": 14}
+
+BG_COLOR = THEMES["Classic"]["bg"]
+FG_COLOR = THEMES["Classic"]["fg"]
+OH_COLOR = THEMES["Classic"]["oh"]
+
+FONT_FAMILY = None
+FONT_SIZE   = 11
 
 class ExpenseManagerApp:
     def __init__(self, root):
         self.root = root
+        self.apply_theme()
+        self.apply_font()
         self.root.title("Expense Manager v1")
         self.root.iconbitmap("icon_black_multi.ico")
-        self.root.geometry("800x600")
+        self.root.geometry("800x650")
         self.root.configure(bg=BG_COLOR)
 
         self.frames = {}
         self.init_frames()
+        # Names of frames that should keep the menubar visible
+        self.static_frames = {"home", "user", "group", "all_groups"}
+        self.build_menubar()
+        self.root.config(menu=self.menubar)
         self.show_frame("home")
 
         self.dynamic_builders = {
@@ -39,6 +65,87 @@ class ExpenseManagerApp:
             # more to be added...
         }
 
+# ── SETTINGS MENU ───────────────────────────────────────────
+    def build_menubar(self):
+        self.menubar = tk.Menu(self.root)
+
+        # Theme submenu
+        theme_menu = tk.Menu(self.menubar, tearoff=0)
+        for name in THEMES:
+            theme_menu.add_command(
+                label=name,
+                command=lambda n=name: self.set_theme(n)
+            )
+        self.menubar.add_cascade(label="Theme", menu=theme_menu)
+
+        # Font‑family submenu
+        font_menu = tk.Menu(self.menubar, tearoff=0)
+        for name in FONTS:
+            font_menu.add_command(
+                label=name,
+                command=lambda n=name: self.set_font_family(n)
+            )
+        self.menubar.add_cascade(label="Font", menu=font_menu)
+
+        # Font‑size submenu
+        size_menu = tk.Menu(self.menubar, tearoff=0)
+        for label, size in FONT_SIZES.items():
+            size_menu.add_command(
+                label=label,
+                command=lambda s=size: self.set_font_size(s)
+            )
+        self.menubar.add_cascade(label="Size", menu=size_menu)
+
+        self.root.config(menu=self.menubar)
+
+# ── APPLY FUNCTIONS ────────────────────────────────────────
+    def set_theme(self, name):
+        global BG_COLOR, FG_COLOR, OH_COLOR
+        BG_COLOR = THEMES[name]["bg"]
+        FG_COLOR = THEMES[name]["fg"]
+        OH_COLOR = THEMES[name]["oh"]
+        self.apply_theme()
+        self.repaint_static_frames()
+
+    def set_font_family(self, name):
+        global FONT_FAMILY
+        FONT_FAMILY = FONTS[name]
+        self.apply_font()
+        self.repaint_static_frames()
+
+    def set_font_size(self, size):
+        global FONT_SIZE
+        FONT_SIZE = size
+        self.apply_font()
+        self.repaint_static_frames()
+
+    def apply_theme(self):
+        # root + future widgets
+        self.root.configure(bg=BG_COLOR)
+        # update global FONT tuple
+        self.base_font = (FONT_FAMILY or "Courier", FONT_SIZE)
+        global FONT
+        FONT = self.base_font
+
+    def apply_font(self):
+        self.base_font = (FONT_FAMILY or "Courier", FONT_SIZE)
+        global FONT
+        FONT = self.base_font
+
+    # Stub – repaint existing static frames if you like
+    def repaint_static_frames(self):
+        # loop through self.frames and configure backgrounds / fg where needed
+        for f in self.frames.values():
+            f.configure(bg=BG_COLOR)
+            for child in f.winfo_children():
+                try:
+                    child.configure(bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+                except tk.TclError:
+                    pass
+
+                if isinstance(child, tk.OptionMenu):
+                    child.configure(bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR)
+#===============================================================
     def init_frames(self):
         self.frames["home"] = self.build_home_frame()
         self.frames["user"] = self.build_user_frame()
@@ -52,6 +159,12 @@ class ExpenseManagerApp:
         self.frames[name].pack(fill="both", expand=True)
 
         self.refresh_static_widgets()
+        
+        # Show menu on static frames; hide on dynamic ones
+        if name in self.static_frames:
+            self.root.config(menu=self.menubar)
+        else:
+            self.root.config(menu="")
     
     def refresh_static_widgets(self):
         if hasattr(self, "existing_groups_listbox"):
@@ -99,7 +212,11 @@ class ExpenseManagerApp:
         else:
             print(f"No builder found for frame: {frame_name}")
 
-    
+    def labeled_entry(self, parent, label_text): 
+        tk.Label(parent, text=label_text, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        entry = tk.Entry(parent, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
+        entry.pack()
+        return entry
 
     def build_home_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
@@ -120,10 +237,10 @@ class ExpenseManagerApp:
 
         tk.Label(frame, text="New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
-        username_entry = labeled_entry(frame, "Username")
-        first_name_entry = labeled_entry(frame, "First Name")
-        last_name_entry = labeled_entry(frame, "Last Name")
-        email_entry = labeled_entry(frame, "Email")
+        username_entry = self.labeled_entry(frame, "Username")
+        first_name_entry = self.labeled_entry(frame, "First Name")
+        last_name_entry = self.labeled_entry(frame, "Last Name")
+        email_entry = self.labeled_entry(frame, "Email")
 
         def submit_user():
             username = username_entry.get().strip()
@@ -194,8 +311,8 @@ class ExpenseManagerApp:
 
         tk.Label(frame, text="New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
 
-        name_entry = labeled_entry(frame, "Group Name")
-        desc_entry = labeled_entry(frame, "Description")
+        name_entry = self.labeled_entry(frame, "Group Name")
+        desc_entry = self.labeled_entry(frame, "Description")
 
         creator_var = tk.StringVar(frame)
         dropdown = tk.OptionMenu(frame, creator_var, "")
@@ -442,8 +559,8 @@ class ExpenseManagerApp:
         tk.Label(frame, text=f"New Expense for '{group.name}'",
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        description_entry = labeled_entry(frame, "Description")
-        amount_entry      = labeled_entry(frame, "Total Amount (€)")
+        description_entry = self.labeled_entry(frame, "Description")
+        amount_entry      = self.labeled_entry(frame, "Total Amount (€)")
 
         # payer dropdown -------------------------------------------------
         payer_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
@@ -481,14 +598,17 @@ class ExpenseManagerApp:
         members_frame.pack(pady=5)
         check_vars, entry_vars = {}, {}
 
+        def format(text, width):
+            return (text[:width - 1] + '…') if len(text) > width else text.ljust(width)
+        
         for u in members:
+            username = format(u.username, 10)
             row = tk.Frame(members_frame, bg=BG_COLOR)
             row.pack(anchor="w")
             chk_var = tk.BooleanVar(value=True)
             ent_var = tk.StringVar(value="")
-            tk.Checkbutton(row, text=f"{u.username}", variable=chk_var,
-                        bg=BG_COLOR, fg=FG_COLOR,
-                        selectcolor=BG_COLOR,
+            tk.Checkbutton(row, text=username, variable=chk_var, width=15, anchor="w",
+                        bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
                         command=lambda v=chk_var,e=ent_var: e.set("" if v.get() else ""))\
                         .pack(side="left")
             ent = tk.Entry(row, textvariable=ent_var, width=8,
