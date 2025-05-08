@@ -364,11 +364,11 @@ def get_group_expenses(group_id):
         conn.close()
         
 # Balance and Settlement Functions
-def get_user_balance_summary(group_id, user_id):
+def get_user_balances(group_id, user_id):
     """Get the balance of a user in a group."""
     conn = get_db_connection()
     try:
-        return db.get_user_owes_whom(conn, group_id, user_id)
+        return db.get_user_balances(conn, group_id, user_id)
     
     except Exception as e:
         print(f"Error retrieving user's balance: {e}")
@@ -379,7 +379,7 @@ def get_user_balance_summary(group_id, user_id):
 
 def get_user_debts(group_id, user_id):
     """Get debts of a user in a group."""
-    conn = get_db_connection
+    conn = get_db_connection()
     try:
         return db.get_user_owes_whom(conn, group_id, user_id)
     
@@ -387,6 +387,17 @@ def get_user_debts(group_id, user_id):
         print(f"Error retrieving user's debts: {e}")
         return None
     
+    finally:
+        conn.close()
+
+def get_user_is_owed_by(group_id, user_id):
+    """Return list of members owing the user inside the group."""
+    conn = get_db_connection()
+    try:
+        return db.get_user_is_owed_by(conn, group_id, user_id)
+    except Exception as e:
+        print(f"Error retrieving who owes the user: {e}")
+        return []
     finally:
         conn.close()
 

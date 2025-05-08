@@ -459,6 +459,34 @@ def get_user_owes_whom(conn, group_id, user_id):
         })
     return owes_to
 
+def get_user_is_owed_by(conn, group_id, user_id):
+    """
+    Return how much each member owes TO the given user inside the group.
+    """
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT u.id, u.username, u.first_name, u.last_name,
+           SUM(es.amount) AS amount_owed_to_user
+    FROM expense_shares es
+    JOIN expenses e ON es.expense_id = e.id
+    JOIN users u ON es.user_id = u.id          -- debtor
+    WHERE e.group_id = ?
+      AND e.paid_by  = ?                      -- selected user is the payer
+      AND es.is_paid = 0
+      AND es.user_id != ?
+    GROUP BY es.user_id
+    ''', (group_id, user_id, user_id))
+
+    results = []
+    for row in cursor.fetchall():
+        results.append({
+            "user_id":  row["id"],
+            "username": row["username"],
+            "name":     f'{row["first_name"]} {row["last_name"]}',
+            "amount":   row["amount_owed_to_user"],
+        })
+    return results
+
 def initialize_db(db_path='expenses.db'):
     """Initialize the database with all tables"""
     conn = connect_db(db_path)

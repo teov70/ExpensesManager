@@ -62,6 +62,7 @@ class ExpenseManagerApp:
             "selected_group": self.build_open_group_frame,
             "add_users": self.build_add_users_frame,
             "create_expense": self.build_create_expense_frame,
+            "group_balances": self.build_group_balances_frame
             # more to be added...
         }
 
@@ -503,6 +504,8 @@ class ExpenseManagerApp:
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
         tk.Button(left_buttons, text="Delete Selected", command=delete_selected_expense,
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
+        tk.Button(left_buttons, text="User Balances", command=lambda: self.open_dynamic_frame("group_balances", group_id=group_id),
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
         tk.Button(right_buttons, text="Back", command=lambda: self.show_frame("all_groups"),
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="right", padx=5)
     
@@ -685,7 +688,81 @@ class ExpenseManagerApp:
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
 
         return frame
+    
+    def build_group_balances_frame(self, group_id=None, **kwargs):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
 
+        # ---------- members + label map ----------
+        members = app.get_group_members(group_id)
+        member_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
+        label_to_uid  = {lab: u.id for lab, u in zip(member_labels, members)}
+
+        tk.Label(frame, text="User Balances", bg=BG_COLOR, fg=FG_COLOR,
+                font=FONT).pack(pady=10)
+
+        user_var = tk.StringVar(frame); user_var.set(member_labels[0])
+        dropdown = tk.OptionMenu(frame, user_var, *member_labels)
+        dropdown.config(bg=BG_COLOR, fg=FG_COLOR, font=FONT,
+                        activebackground=OH_COLOR, highlightthickness=0)
+        dropdown.pack()
+
+        totals_lbl = tk.Label(frame, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        totals_lbl.pack(pady=5)
+
+        listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR,
+                            font=FONT, selectbackground=OH_COLOR)
+        listbox.pack(pady=5)
+
+        def refresh(*_):
+            uid = label_to_uid[user_var.get()]
+
+            # lists of dicts
+            owed_to_user = app.get_user_is_owed_by(group_id, uid)   # others → user
+            user_owes    = app.get_user_debts(group_id, uid)        # user → others
+
+            total_owed_to_user = sum(d["amount"] for d in owed_to_user)
+            total_user_owes    = sum(d["amount"] for d in user_owes)
+            net_balance        = total_owed_to_user - total_user_owes
+
+            # --- totals line ---
+            totals_lbl.config(
+                text=f"Owed to {user_var.get().split()[0]}: {total_owed_to_user:.2f}€   "
+                    f"Owes others: {total_user_owes:.2f}€   "
+                    f"Balance: {net_balance:+.2f}€"
+            )
+
+            # --- per‑user breakdown ---
+            listbox.delete(0, tk.END)
+            # merge both lists into a dict keyed by other‑user ID
+            combined = {}
+            for d in user_owes:
+                combined.setdefault(d["user_id"], {"name": d["username"], "owes": 0, "owed": 0})
+                combined[d["user_id"]]["owes"] = d["amount"]
+            for d in owed_to_user:
+                combined.setdefault(d["user_id"], {"name": d["username"], "owes": 0, "owed": 0})
+                combined[d["user_id"]]["owed"] = d["amount"]
+
+            for info in combined.values():
+                diff = info["owed"] - info["owes"]
+                if diff > 0:
+                    msg = f"They owe {diff:.2f}€"
+                elif diff < 0:
+                    msg = f"You owe {abs(diff):.2f}€"
+                else:
+                    msg = "Settled"
+                indent = "   "
+                listbox.insert(tk.END,
+                    f"{indent}{info['name']:<15}  {msg}")
+
+        # trigger refresh on dropdown change
+        user_var.trace_add("write", refresh)
+        refresh()
+
+        tk.Button(frame, text="Back",
+                command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=8)
+
+        return frame
 
 # Start app
 if __name__ == "__main__":
