@@ -9,8 +9,7 @@ THEMES = {
     "Accent": {"bg": "#281e36", "fg": "#00ffae", "oh": "#574275"},    # Subtle hacker
     "BSOD": {"bg": "#000088", "fg": "#ffffff", "oh": "#858585"},      # Blue Screen of Death
     "Barbie": {"bg": "#fcb8eb", "fg": "#ff1493", "oh": "#ffd4e6"},    # Pink paradise
-
-    "Commodore64": {"bg": "#40318d", "fg": "#a5a5ff", "oh": "#7869c4"},  # Retro 8-bit
+    "Commodore64": {"bg": "#3f33a2", "fg": "#7d70da", "oh": "#7869c4"},  # Retro 8-bit
     "Matrix": {"bg": "#000000", "fg": "#00ff00", "oh": "#003b00"},       # Neo-approved
     "Vaporwave": {"bg": "#ff71ce", "fg": "#05ffa1", "oh": "#b967ff"},    # Neon nostalgia
     "FrutigerAero": {"bg": "#93e046", "fg": "#007ca6", "oh": "#a2cfe0"},  # Fresh 2000s aesthetic
@@ -19,26 +18,31 @@ THEMES = {
     "Coffee": {"bg": "#4b3621", "fg": "#d2b48c", "oh": "#6e5534"},       # Late-night coding
     "Cyberpunk": {"bg": "#2a2139", "fg": "#ff2a6d", "oh": "#5c3b6e"},    # Night City
     "Windows95": {"bg": "#c3c7cb", "fg": "#000080", "oh": "#e7e8ea"},    # Nostalgia overload
-    "AmericanPsycho": {"bg": "#edebdd", "fg": "#1f1e1d", "oh": "#d65747"}
+    "AmericanPsycho": {"bg": "#edebdd", "fg": "#1f1e1d", "oh": "#d65747"}  # Stark chic
 }
 
 FONTS = {
-    "Default":  None,
+    "Default":  "Cascadia Mono",
     "Courier":  "Courier New",
     "Consolas": "Consolas",
     "Cascadia": "Cascadia Mono",
     "Segoe":    "Segoe UI Mono",
-    "Helvetica": "Helvetica",
-    "Verdana": "Verdana"
+    "Verdana": "Verdana",
+    "System": "System",
+    "Terminal": "Terminal",
+    "Microsoft": "@Microsoft YaHei UI",
+    "Bahnschrift": "Bahnschrift",
+    "Copperplate": "Copperplate Gothic Bold"
 }
-FONT_SIZES = {"S": 10, "M": 11, "L": 12, "XL": 14}
+
+FONT_SIZES = {"S": 11, "M": 12, "L": 13}
 
 BG_COLOR = THEMES["Classic"]["bg"]
 FG_COLOR = THEMES["Classic"]["fg"]
 OH_COLOR = THEMES["Classic"]["oh"]
 
-FONT_FAMILY = None
-FONT_SIZE   = 11
+FONT_FAMILY = "Cascadia Mono"
+FONT_SIZE   = 12
 
 class ExpenseManagerApp:
     def __init__(self, root):
@@ -47,13 +51,19 @@ class ExpenseManagerApp:
         self.apply_font()
         self.root.title("Expense Manager v1")
         self.root.iconbitmap("ExpenseManager.ico")
-        self.root.geometry("800x650")
+        self.root.geometry("900x675")
         self.root.configure(bg=BG_COLOR)
 
+        self.static_builders = {
+            "home": self.build_home_frame,
+            "user": self.build_user_frame,
+            "group": self.build_group_frame,
+            "all_groups": self.build_all_groups_frame
+        }
+        self.static_frames = set(self.static_builders)
         self.frames = {}
         self.init_frames()
-        # Names of frames that should keep the menubar visible
-        self.static_frames = {"home", "user", "group", "all_groups"}
+
         self.build_menubar()
         self.root.config(menu=self.menubar)
         self.show_frame("home")
@@ -63,43 +73,79 @@ class ExpenseManagerApp:
             "add_users": self.build_add_users_frame,
             "create_expense": self.build_create_expense_frame,
             "group_balances": self.build_group_balances_frame
-            # more to be added...
         }
 
-# ── SETTINGS MENU ───────────────────────────────────────────
+    # ── INIT / FRAME MANAGEMENT ─────────────────────────────────────
+    def init_frames(self):
+        for name, builder in self.static_builders.items():
+            self.frames[name] = builder()
+
+    def show_frame(self, name):
+        for frame in self.frames.values():
+            frame.pack_forget()
+        self.frames[name].pack(fill="both", expand=True)
+
+        self.refresh_static_widgets()
+        if name in self.static_frames:
+            self.current_static_frame = name
+            self.root.config(menu=self.menubar)
+        else:
+            self.root.config(menu="")
+
+    def open_dynamic_frame(self, frame_name, group_id=None, user_id=None, expense_id=None, share_id=None):
+        if frame_name in self.frames:
+            self.frames[frame_name].destroy()
+
+        builder = self.dynamic_builders.get(frame_name)
+        if builder:
+            frame = builder(
+                group_id=group_id,
+                user_id=user_id,
+                expense_id=expense_id,
+                share_id=share_id
+            )
+            self.frames[frame_name] = frame
+            self.show_frame(frame_name)
+        else:
+            print(f"No builder found for frame: {frame_name}")
+
+    def repaint_static_frames(self):
+        for name, builder in self.static_builders.items():
+            if name in self.frames:
+                self.frames[name].destroy()
+            self.frames[name] = builder()
+        self.show_frame(self.current_static_frame)
+
+    def refresh_static_widgets(self):
+        if hasattr(self, "existing_groups_listbox"):
+            self.load_groups_listbox(self.existing_groups_listbox)
+        if hasattr(self, "all_groups_listbox"):
+            self.load_groups_listbox(self.all_groups_listbox)
+        if hasattr(self, "creator_dropdown") and hasattr(self, "creator_var"):
+            self.load_users_dropdown(self.creator_dropdown, self.creator_var)
+
+    # ── SETTINGS MENU ───────────────────────────────────────────────
     def build_menubar(self):
         self.menubar = tk.Menu(self.root)
 
-        # Theme submenu
         theme_menu = tk.Menu(self.menubar, tearoff=0)
         for name in THEMES:
-            theme_menu.add_command(
-                label=name,
-                command=lambda n=name: self.set_theme(n)
-            )
+            theme_menu.add_command(label=name, command=lambda n=name: self.set_theme(n))
         self.menubar.add_cascade(label="Theme", menu=theme_menu)
 
-        # Font‑family submenu
         font_menu = tk.Menu(self.menubar, tearoff=0)
         for name in FONTS:
-            font_menu.add_command(
-                label=name,
-                command=lambda n=name: self.set_font_family(n)
-            )
+            font_menu.add_command(label=name, command=lambda n=name: self.set_font_family(n))
         self.menubar.add_cascade(label="Font", menu=font_menu)
 
-        # Font‑size submenu
         size_menu = tk.Menu(self.menubar, tearoff=0)
         for label, size in FONT_SIZES.items():
-            size_menu.add_command(
-                label=label,
-                command=lambda s=size: self.set_font_size(s)
-            )
+            size_menu.add_command(label=label, command=lambda s=size: self.set_font_size(s))
         self.menubar.add_cascade(label="Size", menu=size_menu)
 
         self.root.config(menu=self.menubar)
 
-# ── APPLY FUNCTIONS ────────────────────────────────────────
+    # ── APPLY FUNCTIONS ─────────────────────────────────────────────
     def set_theme(self, name):
         global BG_COLOR, FG_COLOR, OH_COLOR
         BG_COLOR = THEMES[name]["bg"]
@@ -121,60 +167,21 @@ class ExpenseManagerApp:
         self.repaint_static_frames()
 
     def apply_theme(self):
-        # root + future widgets
         self.root.configure(bg=BG_COLOR)
-        # update global FONT tuple
         self.base_font = (FONT_FAMILY or "Courier", FONT_SIZE)
-        global FONT
+        self.title_font = (FONT_FAMILY or "Courier", FONT_SIZE + 2)
+        global FONT, TITLE_FONT
         FONT = self.base_font
+        TITLE_FONT = self.title_font
 
     def apply_font(self):
         self.base_font = (FONT_FAMILY or "Courier", FONT_SIZE)
-        global FONT
+        self.title_font = (FONT_FAMILY or "Courier", FONT_SIZE + 2)
+        global FONT, TITLE_FONT
         FONT = self.base_font
+        TITLE_FONT = self.title_font
 
-    # Stub – repaint existing static frames if you like
-    def repaint_static_frames(self):
-        # loop through self.frames and configure backgrounds / fg where needed
-        for f in self.frames.values():
-            f.configure(bg=BG_COLOR)
-            for child in f.winfo_children():
-                try:
-                    child.configure(bg=BG_COLOR, fg=FG_COLOR, font=FONT)
-                except tk.TclError:
-                    pass
-
-                if isinstance(child, tk.OptionMenu):
-                    child.configure(bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR)
-#===============================================================
-    def init_frames(self):
-        self.frames["home"] = self.build_home_frame()
-        self.frames["user"] = self.build_user_frame()
-        self.frames["group"] = self.build_group_frame()
-        self.frames["all_groups"] = self.build_all_groups_frame()
-
-
-    def show_frame(self, name):
-        for frame in self.frames.values():
-            frame.pack_forget()
-        self.frames[name].pack(fill="both", expand=True)
-
-        self.refresh_static_widgets()
-        
-        # Show menu on static frames; hide on dynamic ones
-        if name in self.static_frames:
-            self.root.config(menu=self.menubar)
-        else:
-            self.root.config(menu="")
-    
-    def refresh_static_widgets(self):
-        if hasattr(self, "existing_groups_listbox"):
-            self.load_groups_listbox(self.existing_groups_listbox)
-        if hasattr(self, "all_groups_listbox"):
-            self.load_groups_listbox(self.all_groups_listbox)
-        if hasattr(self, "creator_dropdown") and hasattr(self, "creator_var"):
-            self.load_users_dropdown(self.creator_dropdown, self.creator_var)       
-
+    # ── HELPERS ─────────────────────────────────────────────────────
     def load_groups_listbox(self, listbox):
         listbox.delete(0, tk.END)
         groups = app.get_all_groups()
@@ -183,46 +190,33 @@ class ExpenseManagerApp:
             listbox.insert(tk.END, f"{group.id}: {group.name} (created by {creator.username})")
 
     def load_users_dropdown(self, menu_widget, string_var):
-            users = app.get_all_users()
-            menu = menu_widget['menu']
-            menu.delete(0, 'end')
-            if users:
-                for user in users:
-                    label = f"{user.username} ({user.first_name} {user.last_name})"
-                    menu.add_command(label=label, command=tk._setit(string_var, label))
-                string_var.set(f"{users[0].username} ({users[0].first_name} {users[0].last_name})")
-            else:
-                placeholder = "No users available"
-                menu.add_command(label=placeholder, state="disabled")
-                string_var.set(placeholder)
-
-    def open_dynamic_frame(self, frame_name, group_id=None, user_id=None, expense_id=None, share_id=None):
-        if frame_name in self.frames:
-            self.frames[frame_name].destroy()
-
-        builder = self.dynamic_builders.get(frame_name)
-        if builder:
-            frame = builder(
-                group_id=group_id,
-                user_id=user_id,
-                expense_id=expense_id,
-                share_id=share_id
-            )
-            self.frames[frame_name] = frame
-            self.show_frame(frame_name)
+        users = app.get_all_users()
+        menu = menu_widget['menu']
+        menu.delete(0, 'end')
+        if users:
+            for user in users:
+                label = f"{user.username} ({user.first_name} {user.last_name})"
+                menu.add_command(label=label, command=tk._setit(string_var, label))
+            string_var.set(f"{users[0].username} ({users[0].first_name} {users[0].last_name})")
         else:
-            print(f"No builder found for frame: {frame_name}")
+            placeholder = "No users available"
+            menu.add_command(label=placeholder, state="disabled")
+            string_var.set(placeholder)
 
-    def labeled_entry(self, parent, label_text): 
-        tk.Label(parent, text=label_text, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
-        entry = tk.Entry(parent, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
-        entry.pack()
+    def labeled_entry(self, parent, label_text):
+        row = tk.Frame(parent, bg=BG_COLOR)
+        row.pack(pady=2)
+        tk.Label(row, text=label_text, width=15, anchor="e", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=(0, 5))
+        entry = tk.Entry(row, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
+        entry.pack(side="left")
         return entry
 
     def build_home_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(frame, text="Expense Manager v1", font=("Courier", 14, "bold"), bg=BG_COLOR, fg=FG_COLOR).pack(pady=20)
+        title = tk.Label(frame, text="Expense Manager v1", font=TITLE_FONT, bg=BG_COLOR, fg=FG_COLOR)
+        title.is_title = True
+        title.pack(pady=30)
 
         tk.Button(frame, text="Create User", command=lambda: self.show_frame("user"),
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
@@ -236,7 +230,7 @@ class ExpenseManagerApp:
     def build_user_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(frame, text="New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        tk.Label(frame, text="New User", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
 
         username_entry = self.labeled_entry(frame, "Username")
         first_name_entry = self.labeled_entry(frame, "First Name")
@@ -310,7 +304,7 @@ class ExpenseManagerApp:
     def build_group_frame(self):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
-        tk.Label(frame, text="New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        tk.Label(frame, text="New Group", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
         name_entry = self.labeled_entry(frame, "Group Name")
         desc_entry = self.labeled_entry(frame, "Description")
@@ -410,7 +404,9 @@ class ExpenseManagerApp:
     def build_open_group_frame(self, group_id=None, **kwargs):
         frame = tk.Frame(self.root, bg=BG_COLOR)
         group_info = app.get_expense_group(group_id)
-        tk.Label(frame, text=group_info.name, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        title = tk.Label(frame, text=group_info.name, bg=BG_COLOR, fg=FG_COLOR, font=TITLE_FONT)
+        title.is_title = True
+        title.pack(pady=15)
         tk.Label(frame, text=group_info.description, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
 
         # Fetch and show current group members, manage group members
