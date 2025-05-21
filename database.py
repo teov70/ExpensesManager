@@ -325,7 +325,7 @@ def get_expense(conn, expense_id):
 def get_group_expenses(conn, group_id):
     """Get all expenses for a group"""
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM expenses WHERE group_id = ?', (group_id,))
+    cursor.execute('''SELECT * FROM expenses WHERE group_id = ? ORDER BY id DESC''', (group_id,))
     expenses = []
     for row in cursor.fetchall():
         expenses.append(Expense(

@@ -206,7 +206,7 @@ class ExpenseManagerApp:
     def labeled_entry(self, parent, label_text):
         row = tk.Frame(parent, bg=BG_COLOR)
         row.pack(pady=2)
-        tk.Label(row, text=label_text, width=15, anchor="e", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=(0, 5))
+        tk.Label(row, text=label_text, width=16, anchor="e", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=(0, 5))
         entry = tk.Entry(row, bg=BG_COLOR, fg=FG_COLOR, font=FONT, insertbackground=FG_COLOR)
         entry.pack(side="left")
         return entry
@@ -577,10 +577,10 @@ class ExpenseManagerApp:
         radio_row.pack()
         tk.Radiobutton(radio_row, text="Even split", variable=split_mode,
                     value="even", bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR, command=lambda: toggle_custom(False)).pack(side="left")
+                    selectcolor=BG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
         tk.Radiobutton(radio_row, text="Custom split", variable=split_mode,
                     value="custom", bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR, command=lambda: toggle_custom(True)).pack(side="left", padx=10)
+                    selectcolor=BG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
 
         # percent / amount toggle (only in custom mode)
         amount_type = tk.StringVar(value="amount")  # "amount" or "percent"
@@ -608,21 +608,37 @@ class ExpenseManagerApp:
             ent_var = tk.StringVar(value="")
             tk.Checkbutton(row, text=username, variable=chk_var, width=15, anchor="w",
                         bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
-                        command=lambda v=chk_var,e=ent_var: e.set("" if v.get() else ""))\
-                        .pack(side="left")
+                        command=lambda uid = u.id: refresh_entry(uid)).pack(side="left")
             ent = tk.Entry(row, textvariable=ent_var, width=8,
                         bg=BG_COLOR, fg=FG_COLOR, insertbackground=FG_COLOR, state="disabled")
             ent.pack(side="left", padx=5)
+            ent.pack_forget()
             check_vars[u.id] = chk_var
             entry_vars[u.id] = (ent_var, ent)
 
         # helper to toggle entry widgets
-        def toggle_custom(show):
-            for uid, (var, entry) in entry_vars.items():
-                entry.configure(state="normal" if show else "disabled")
-            type_row.pack_forget()
-            if show:
-                type_row.pack()
+        def on_split_mode_change():
+            if split_mode.get() == "custom":
+                type_row.pack(after=radio_row)
+            else:
+                type_row.pack_forget()
+
+            for uid in entry_vars:
+                refresh_entry(uid)
+
+        def refresh_entry(uid):
+            """Enable or disable a member’s entry and clear it when disabled."""
+            checked  = check_vars[uid].get()
+            custom   = split_mode.get() == "custom"
+            var, entry = entry_vars[uid]
+
+            if checked and custom:
+                entry.config(state="normal")
+                entry.pack(side="right", padx=5)
+            else:
+                entry.config(state="disabled")
+                var.set("")
+                entry.pack_forget()
 
         # ---------- submit ----------------------------------------------
         def submit_expense():

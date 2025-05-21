@@ -290,10 +290,20 @@ def delete_expense(expense_id):
         conn.close()
 
 def create_expense_with_shares(description, amount, paid_by, group_id, shares_dict):
-    """Create a new expense with shares
+    """Create a new expense with shares.
+
+    Args:
+        description (str): Text description.
+        amount (float): Total amount (> 0).
+        paid_by (int): user_id of the payer (must be in the group).
+        group_id (int): ID of the expense group.
+        shares_dict (dict[int, float]): {user_id: share}; may include
+            *any subset* of group members. If values sum to 0 → even split
+            among the listed members; if 100 → percentages; otherwise they’re
+            treated as absolute amounts and must sum to `amount`.
 
     Returns:
-        The ID of the newly created expense, or None if creation failed
+        int | None: Newly-created expense ID, or None on failure.
     """
     if group_id is None:
         raise ValueError("group_id is required.")
@@ -304,41 +314,55 @@ def create_expense_with_shares(description, amount, paid_by, group_id, shares_di
 
     conn = get_db_connection()
     try:
-        members         = db.get_group_members(conn, group_id)
-        valid_user_ids  = {u.id for u in members}
+        members        = db.get_group_members(conn, group_id)
+        valid_user_ids = {u.id for u in members}
 
         if paid_by not in valid_user_ids:
             raise ValueError("paid_by user is not a member of this group.")
 
+        # make sure every key in shares_dict is a valid member
+        for uid in shares_dict:
+            if uid not in valid_user_ids:
+                raise ValueError(f"user_id {uid} is not a member of this group.")
+
         # ----- prepare shares -------------------------------------------------
         total_input = sum(shares_dict.values())
 
-        if total_input == 100:                      # percentages
+        if total_input == 100:                       # percentages
             for uid in shares_dict:
                 shares_dict[uid] = amount * shares_dict[uid] / 100
 
-        elif total_input == 0:                      # even split
-            if set(shares_dict.keys()) != valid_user_ids:
-                raise ValueError("For even split, include every member in shares_dict")
+        elif total_input == 0:                       # even split among *listed* users
             even = amount / len(shares_dict)
             for uid in shares_dict:
                 shares_dict[uid] = even
 
+        # otherwise: custom absolute amounts -------------------------------
         actual_sum = sum(shares_dict.values())
         if abs(actual_sum - amount) > 1e-3:
             raise ValueError("Shares must sum to total amount.")
 
-        # ----------------------------------------------------------------------
-        conn.execute("BEGIN")                       # atomic block
+        # -------------------------------------------------------------------
+        conn.execute("BEGIN")                        # atomic block
 
-        expense = Expense(description=description, amount=amount, paid_by=paid_by, group_id=group_id)
+        expense = Expense(
+            description=description,
+            amount=amount,
+            paid_by=paid_by,
+            group_id=group_id,
+        )
         expense_id = db.insert_expense(conn, expense)
 
         for uid, share in shares_dict.items():
             if share < 0:
-                raise ValueError("Share values must be non‑negative.")
+                raise ValueError("Share values must be non-negative.")
             is_paid = (uid == paid_by)
-            expense_share = ExpenseShare(expense_id=expense_id, user_id=uid, amount=share, is_paid=is_paid)
+            expense_share = ExpenseShare(
+                expense_id=expense_id,
+                user_id=uid,
+                amount=share,
+                is_paid=is_paid,
+            )
             db.insert_expense_share(conn, expense_share)
 
         conn.commit()
@@ -348,6 +372,7 @@ def create_expense_with_shares(description, amount, paid_by, group_id, shares_di
         conn.rollback()
         print("Error creating shares:", e)
         return None
+
     finally:
         conn.close()
 
