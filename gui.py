@@ -11,7 +11,7 @@ THEMES = {
     "Barbie": {"bg": "#fcb8eb", "fg": "#ff1493", "oh": "#ffd4e6"},    # Pink paradise
     "Commodore64": {"bg": "#3f33a2", "fg": "#7d70da", "oh": "#7869c4"},  # Retro 8-bit
     "Matrix": {"bg": "#000000", "fg": "#00ff00", "oh": "#003b00"},       # Neo-approved
-    "Vaporwave": {"bg": "#ff71ce", "fg": "#05ffa1", "oh": "#b967ff"},    # Neon nostalgia
+    "Vaporwave": {"bg": "#e887c6", "fg": "#05ffa1", "oh": "#b967ff"},    # Neon nostalgia
     "FrutigerAero": {"bg": "#93e046", "fg": "#007ca6", "oh": "#a2cfe0"},  # Fresh 2000s aesthetic
     "PumpkinSpice": {"bg": "#331800", "fg": "#ffa500", "oh": "#663300"}, # Autumn vibes
     "Fallout": {"bg": "#003b3b", "fg": "#18ff00", "oh": "#007070"},      # Vault-tec terminal
@@ -72,7 +72,8 @@ class ExpenseManagerApp:
             "selected_group": self.build_open_group_frame,
             "add_users": self.build_add_users_frame,
             "create_expense": self.build_create_expense_frame,
-            "group_balances": self.build_group_balances_frame
+            "group_balances": self.build_group_balances_frame,
+            "update_expense": self.build_update_expense_frame
         }
 
     # ── INIT / FRAME MANAGEMENT ─────────────────────────────────────
@@ -219,11 +220,11 @@ class ExpenseManagerApp:
         title.pack(pady=30)
 
         tk.Button(frame, text="Create User", command=lambda: self.show_frame("user"),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25, activebackground=OH_COLOR).pack(pady=10)
         tk.Button(frame, text="Create Group", command=lambda: self.show_frame("group"),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25, activebackground=OH_COLOR).pack(pady=10)
         tk.Button(frame, text="View All Groups", command=lambda: self.show_frame("all_groups"),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25).pack(pady=10)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, width=25, activebackground=OH_COLOR).pack(pady=10)
 
         return frame
 
@@ -271,10 +272,10 @@ class ExpenseManagerApp:
             else:
                 messagebox.showerror("Error", "Failed to create user")
 
-        tk.Button(frame, text="Submit", command=submit_user, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Submit", command=submit_user, bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
 
         tk.Label(frame, text="Existing Users:", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=(10, 0))
-        self.user_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.user_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT, selectbackground=OH_COLOR)
         self.user_listbox.pack(pady=5)
 
         def load_users():
@@ -296,9 +297,9 @@ class ExpenseManagerApp:
                     messagebox.showerror("Error", "Failed to delete user.")
         
         tk.Button(frame, text="Delete Selected", command=delete_selected_user,
-          bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+          bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
 
-        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         return frame
 
     def build_group_frame(self):
@@ -319,7 +320,7 @@ class ExpenseManagerApp:
         self.creator_dropdown = dropdown
         self.creator_var = creator_var
 
-        self.existing_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.existing_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT, selectbackground=OH_COLOR)
         self.existing_groups_listbox.pack(pady=5)
 
         def submit_group():
@@ -331,7 +332,11 @@ class ExpenseManagerApp:
             name = name_entry.get().strip()
             description = desc_entry.get().strip()
 
-            if not name or not re.match(r'^[a-zA-Z0-9._ -]+$', name):
+            if not name:
+                messagebox.showerror("Validation Error", "Group name cannot be empty.")
+                return
+            
+            elif not re.match(r'^[a-zA-Z0-9._ -]+$', name):
                 messagebox.showerror("Validation Error", "Group name must contain only letters, numbers, spaces or . - _")
                 return
 
@@ -351,8 +356,10 @@ class ExpenseManagerApp:
         self.load_users_dropdown(self.creator_dropdown, self.creator_var)
         self.load_groups_listbox(self.existing_groups_listbox)
 
-        tk.Button(frame, text="Submit", command=submit_group, bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
-        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"), bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+        tk.Button(frame, text="Submit", command=submit_group,
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("home"),
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         return frame
 
     def build_all_groups_frame(self):
@@ -360,7 +367,7 @@ class ExpenseManagerApp:
 
         tk.Label(frame, text="All Expense Groups", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        self.all_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.all_groups_listbox = tk.Listbox(frame, width=60, bg=BG_COLOR, fg=FG_COLOR, font=FONT, selectbackground=OH_COLOR)
         self.all_groups_listbox.pack(pady=5)
 
         def access_selected_group():
@@ -394,11 +401,11 @@ class ExpenseManagerApp:
         self.load_groups_listbox(self.all_groups_listbox)
 
         tk.Button(frame, text="Open Selected", command=access_selected_group,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         tk.Button(frame, text="Delete Selected", command=delete_selected_group,
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         tk.Button(frame, text="Back", command=lambda: self.show_frame("home"),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         return frame
 
     def build_open_group_frame(self, group_id=None, **kwargs):
@@ -426,7 +433,7 @@ class ExpenseManagerApp:
         member_dropdown.pack()
 
         tk.Button(frame, text="Manage Members", command =lambda: self.open_dynamic_frame("add_users", group_id=group_id),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         
         # Show and manage expenses
 
@@ -479,9 +486,17 @@ class ExpenseManagerApp:
                 else:
                     messagebox.showerror("Error", "Could not delete expense.")
 
+        def edit_selected_expense():
+            selected = self.expenses_listbox.curselection()
+            if not selected:
+                return
+            idx = int(selected[0])
+            expense_id = expense_ids[idx]
+            self.open_dynamic_frame("update_expense", group_id=group_id, expense_id=expense_id)
+
         tk.Label(frame, text="All Expenses", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
-        self.expenses_listbox = tk.Listbox(frame, width=85, bg=BG_COLOR, fg=FG_COLOR, font=FONT)
+        self.expenses_listbox = tk.Listbox(frame, width=85, bg=BG_COLOR, fg=FG_COLOR, font=FONT, selectbackground=OH_COLOR)
         self.expenses_listbox.pack(pady=10)
         load_expenses_listbox(self.expenses_listbox, group_id)
 
@@ -497,13 +512,15 @@ class ExpenseManagerApp:
         right_buttons.pack(side="right")
 
         tk.Button(left_buttons, text="New Expense", command=open_create_expense,
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
+        tk.Button(left_buttons, text="Edit Selected", command=edit_selected_expense,
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
         tk.Button(left_buttons, text="Delete Selected", command=delete_selected_expense,
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
         tk.Button(left_buttons, text="User Balances", command=lambda: self.open_dynamic_frame("group_balances", group_id=group_id),
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="left", padx=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
         tk.Button(right_buttons, text="Back", command=lambda: self.show_frame("all_groups"),
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(side="right", padx=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="right", padx=5)
     
         return frame
 
@@ -544,7 +561,7 @@ class ExpenseManagerApp:
             cb.pack(anchor="w")
 
         tk.Button(frame, text="Back", command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
-                  bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack()
 
         return frame
 
@@ -577,20 +594,21 @@ class ExpenseManagerApp:
         radio_row.pack()
         tk.Radiobutton(radio_row, text="Even split", variable=split_mode,
                     value="even", bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
+                    selectcolor=BG_COLOR, activebackground=BG_COLOR,
+                    activeforeground=FG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
         tk.Radiobutton(radio_row, text="Custom split", variable=split_mode,
-                    value="custom", bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
+                    value="custom", bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR,
+                    activeforeground=FG_COLOR, command=lambda: on_split_mode_change()).pack(side="left", padx=10)
 
         # percent / amount toggle (only in custom mode)
         amount_type = tk.StringVar(value="amount")  # "amount" or "percent"
         type_row = tk.Frame(frame, bg=BG_COLOR)
         tk.Radiobutton(type_row, text="Amount",  variable=amount_type,
-                    value="amount",  bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR).pack(side="left")
+                    value="amount",  bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
+                    activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left")
         tk.Radiobutton(type_row, text="Percent", variable=amount_type,
-                    value="percent", bg=BG_COLOR, fg=FG_COLOR,
-                    selectcolor=BG_COLOR).pack(side="left", padx=10)
+                    value="percent", bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
+                    activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left", padx=10)
 
         # ------------- Members list -------------------------------------
         members_frame = tk.Frame(frame, bg=BG_COLOR)
@@ -607,7 +625,7 @@ class ExpenseManagerApp:
             chk_var = tk.BooleanVar(value=True)
             ent_var = tk.StringVar(value="")
             tk.Checkbutton(row, text=username, variable=chk_var, width=15, anchor="w",
-                        bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
+                        bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR, activeforeground=FG_COLOR,
                         command=lambda uid = u.id: refresh_entry(uid)).pack(side="left")
             ent = tk.Entry(row, textvariable=ent_var, width=8,
                         bg=BG_COLOR, fg=FG_COLOR, insertbackground=FG_COLOR, state="disabled")
@@ -679,6 +697,10 @@ class ExpenseManagerApp:
                 if amount_type.get() == "percent" and abs(total_input - 100) > 1e-2:
                     messagebox.showerror("Validation", "Percent split must add up to 100%."); return
 
+            selected = [uid for uid, v in check_vars.items() if v.get()]
+            if payer_id not in selected:
+                messagebox.showerror("Validation", "Payer must be included in the split."); return
+
             # create expense -------------------------
             expense_id = app.create_expense_with_shares(
                 description=desc,
@@ -694,13 +716,195 @@ class ExpenseManagerApp:
             self.open_dynamic_frame("selected_group", group_id=group_id)
 
         tk.Button(frame, text="Add Expense", command=submit_expense,
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=10)
         tk.Button(frame, text="Back",
                 command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=5)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
 
         return frame
-    
+
+    def build_update_expense_frame(self, group_id=None, expense_id=None, **kwargs):
+        frame = tk.Frame(self.root, bg=BG_COLOR)
+
+        if expense_id is None:
+            tk.Label(frame, text="No expense selected.", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+            tk.Button(frame, text="Back", command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
+                      bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
+            return frame
+
+        group   = app.get_expense_group(group_id)
+        expense = app.get_expense(expense_id)
+        members = app.get_group_members(group_id)
+        shares  = app.get_expense_shares(expense_id)
+        existing_user_ids = {s.user_id for s in shares}
+        user_share_map = {s.user_id: s for s in shares}
+        share_values = [s.amount for s in shares]
+        is_even_split = False
+        if share_values:
+            max_val = max(share_values)
+            min_val = min(share_values)
+            is_even_split = abs(max_val - min_val) < 1e-2
+
+        tk.Label(frame, text=f"Update Expense in '{group.name}'", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
+
+        description_entry = self.labeled_entry(frame, "Description")
+        description_entry.insert(0, expense.description or "")
+
+        amount_entry = self.labeled_entry(frame, "Total Amount (€)")
+        try:
+            amount_entry.insert(0, f"{float(expense.amount):.2f}")
+        except Exception:
+            amount_entry.insert(0, str(expense.amount))
+
+        # payer dropdown
+        payer_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
+        label_to_uid = {label: u.id for label, u in zip(payer_labels, members)}
+        uid_to_label = {u.id: label for label, u in zip(payer_labels, members)}
+        payer_var = tk.StringVar(frame)
+        payer_var.set(uid_to_label.get(expense.paid_by, payer_labels[0]))
+        tk.Label(frame, text="Paid by", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack()
+        payer_dropdown = tk.OptionMenu(frame, payer_var, *payer_labels)
+        payer_dropdown.config(bg=BG_COLOR, fg=FG_COLOR, activebackground=OH_COLOR, font=FONT, highlightthickness=0)
+        payer_dropdown.pack(pady=5)
+
+        split_mode = tk.StringVar(value="even")
+        if not is_even_split:
+            split_mode.set("custom")
+        radio_row = tk.Frame(frame, bg=BG_COLOR)
+        radio_row.pack()
+        tk.Radiobutton(radio_row, text="Even split", variable=split_mode, value="even",
+                       bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left", padx=10)
+        tk.Radiobutton(radio_row, text="Custom split", variable=split_mode, value="custom",
+                       bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left", padx=10)
+
+        amount_type = tk.StringVar(value="amount")
+        type_row = tk.Frame(frame, bg=BG_COLOR)
+        tk.Radiobutton(type_row, text="Amount", variable=amount_type, value="amount",
+                       bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left")
+        tk.Radiobutton(type_row, text="Percent", variable=amount_type, value="percent",
+                       bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, activebackground=BG_COLOR, activeforeground=FG_COLOR).pack(side="left", padx=10)
+
+        members_frame = tk.Frame(frame, bg=BG_COLOR)
+        members_frame.pack(pady=5)
+        check_vars, entry_vars = {}, {}
+
+        def format(text, width):
+            return (text[:width - 1] + '…') if len(text) > width else text.ljust(width)
+
+        for u in members:
+            username = format(u.username, 10)
+            row = tk.Frame(members_frame, bg=BG_COLOR)
+            row.pack(anchor="w")
+            chk_var = tk.BooleanVar(value=(u.id in existing_user_ids))
+            ent_initial = f"{user_share_map[u.id].amount:.2f}" if u.id in user_share_map else ""
+            ent_var = tk.StringVar(value=ent_initial)
+            tk.Checkbutton(row, text=username, variable=chk_var, width=15, anchor="w",
+                           bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR,
+                           activebackground=BG_COLOR, activeforeground=FG_COLOR,
+                           command=lambda uid=u.id: refresh_entry(uid)).pack(side="left")
+            ent = tk.Entry(row, textvariable=ent_var, width=8,
+                           bg=BG_COLOR, fg=FG_COLOR, insertbackground=FG_COLOR, state="disabled")
+            ent.pack(side="left", padx=5)
+            ent.pack_forget()
+            check_vars[u.id] = chk_var
+            entry_vars[u.id] = (ent_var, ent)
+
+        def on_split_mode_change():
+            if split_mode.get() == "custom":
+                type_row.pack(after=radio_row)
+            else:
+                type_row.pack_forget()
+            for uid in entry_vars:
+                refresh_entry(uid)
+
+        def refresh_entry(uid):
+            checked = check_vars[uid].get()
+            custom = split_mode.get() == "custom"
+            var, entry = entry_vars[uid]
+            if checked and custom:
+                entry.config(state="normal")
+                entry.pack(side="right", padx=5)
+            else:
+                entry.config(state="disabled")
+                entry.pack_forget()
+
+        split_mode.trace_add("write", lambda *_: on_split_mode_change())
+        on_split_mode_change()
+
+        def submit_update():
+            desc = description_entry.get().strip()
+            amt_str = amount_entry.get().strip()
+            payer_id = label_to_uid[payer_var.get()]
+
+            if not desc:
+                messagebox.showerror("Validation", "Description is required."); return
+            try:
+                amount = float(amt_str)
+            except ValueError:
+                messagebox.showerror("Validation", "Amount must be numeric."); return
+            if amount <= 0:
+                messagebox.showerror("Validation", "Amount must be positive."); return
+
+            # 1) Update expense base fields
+            if not app.update_expense(expense_id, description=desc, amount=amount, paid_by=payer_id):
+                messagebox.showerror("Error", "Failed to update expense."); return
+
+            # 2) Always recalc shares
+            shares_dict = {}
+            selected = [uid for uid, v in check_vars.items() if v.get()]
+            if not selected:
+                messagebox.showerror("Validation", "Select at least one participant."); return
+            if payer_id not in selected:
+                messagebox.showerror("Validation", "Payer must be included in the split."); return
+
+            if split_mode.get() == "even":
+                even = amount / len(selected)
+                shares_dict = {uid: even for uid in selected}
+            else:
+                tmp = {}
+                for uid in selected:
+                    val = entry_vars[uid][0].get().strip()
+                    if not val:
+                        messagebox.showerror("Validation", "Custom split missing values."); return
+                    try:
+                        tmp[uid] = float(val)
+                    except ValueError:
+                        messagebox.showerror("Validation", "Custom values must be numeric."); return
+
+                total_input = sum(tmp.values())
+                if amount_type.get() == "amount":
+                    if abs(total_input - amount) > 1e-2:
+                        messagebox.showerror("Validation", "Shares must sum to total amount."); return
+                    shares_dict = tmp
+                else:
+                    if abs(total_input - 100) > 1e-2:
+                        messagebox.showerror("Validation", "Percent split must add up to 100%."); return
+                    shares_dict = {uid: amount * pct / 100.0 for uid, pct in tmp.items()}
+
+            # reconcile with existing shares; reset paid flags based on new payer
+            existing = {s.user_id: s for s in shares}
+            for uid, amt in shares_dict.items():
+                is_paid = (uid == payer_id)
+                if uid in existing:
+                    prev = existing[uid]
+                    app.update_expense_share(prev.id, amt, is_paid)
+                else:
+                    app.insert_expense_share(expense_id, uid, amt, is_paid=is_paid)
+            for uid, s in existing.items():
+                if uid not in shares_dict:
+                    app.delete_expense_share(s.id)
+
+            messagebox.showinfo("Success", "Expense updated.")
+            self.open_dynamic_frame("selected_group", group_id=group_id)
+
+        tk.Button(frame, text="Save Changes", command=submit_update,
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=10)
+        tk.Button(frame, text="Back",
+                  command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
+                  bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
+
+        return frame
+
     def build_group_balances_frame(self, group_id=None, **kwargs):
         frame = tk.Frame(self.root, bg=BG_COLOR)
 
@@ -714,8 +918,7 @@ class ExpenseManagerApp:
 
         user_var = tk.StringVar(frame); user_var.set(member_labels[0])
         dropdown = tk.OptionMenu(frame, user_var, *member_labels)
-        dropdown.config(bg=BG_COLOR, fg=FG_COLOR, font=FONT,
-                        activebackground=OH_COLOR, highlightthickness=0)
+        dropdown.config(bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR, highlightthickness=0)
         dropdown.pack()
 
         totals_lbl = tk.Label(frame, bg=BG_COLOR, fg=FG_COLOR, font=FONT)

@@ -134,6 +134,7 @@ def create_group(name, description=None, created_by=None):
 
         group = ExpenseGroup(name=name, description=description, created_by=created_by)
         group_id = db.insert_expense_group(conn, group)
+        db.add_group_member(conn, group_id, created_by)
         return group_id
     except Exception as e:
         print(f"Error creating group: {e}")
@@ -426,4 +427,122 @@ def get_user_is_owed_by(group_id, user_id):
     finally:
         conn.close()
 
-#...need to add
+def get_user_by_username(username):
+    """Fetch a user by username (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        return db.get_user_by_username(conn, username)
+    except Exception as e:
+        print(f"Error retrieving user by username: {e}")
+        return None
+    finally:
+        conn.close()
+
+
+def get_user_groups(user_id):
+    """Get all groups a user belongs to (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        return db.get_user_groups(conn, user_id)
+    except Exception as e:
+        print(f"Error retrieving user's groups: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def update_expense_group(group_id, name=None, description=None):
+    """Update an expense group's fields (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        group = db.get_expense_group(conn, group_id)
+        if not group:
+            print(f"Group with ID {group_id} not found")
+            return False
+        if name is not None:
+            group.name = name
+        if description is not None:
+            group.description = description
+        return db.update_expense_group(conn, group)
+    except Exception as e:
+        print(f"Error updating group: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def update_expense(expense_id, description=None, amount=None, date=None, paid_by=None):
+    """Update an expense (wrapper over DB layer). Does not recalc shares."""
+    conn = get_db_connection()
+    try:
+        expense = db.get_expense(conn, expense_id)
+        if not expense:
+            print(f"Expense with ID {expense_id} not found")
+            return False
+        if description is not None:
+            expense.description = description
+        if amount is not None:
+            expense.amount = amount
+        if date is not None:
+            expense.date = date
+        if paid_by is not None:
+            expense.paid_by = paid_by
+        return db.update_expense(conn, expense)
+    except Exception as e:
+        print(f"Error updating expense: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def update_expense_share(share_id, amount, is_paid):
+    """Update an expense share (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        if amount is None or is_paid is None:
+            raise ValueError("amount and is_paid are required to update a share")
+        share = ExpenseShare(id=share_id, amount=amount, is_paid=is_paid)
+        return db.update_expense_share(conn, share)
+    except Exception as e:
+        print(f"Error updating expense share: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def delete_expense_share(share_id):
+    """Delete an expense share by ID (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        db.delete_expense_share(conn, share_id)
+        return True
+    except Exception as e:
+        print(f"Error deleting expense share: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def mark_share_as_paid(share_id, is_paid=True):
+    """Mark/unmark an expense share as paid (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        return db.mark_share_as_paid(conn, share_id, is_paid)
+    except Exception as e:
+        print(f"Error marking share as paid: {e}")
+        return False
+    finally:
+        conn.close()
+
+# === Added by Codex: insert_expense_share wrapper ===
+def insert_expense_share(expense_id, user_id, amount, is_paid=False):
+    """Create an expense share (wrapper over DB layer)."""
+    conn = get_db_connection()
+    try:
+        share = ExpenseShare(expense_id=expense_id, user_id=user_id, amount=amount, is_paid=is_paid)
+        return db.insert_expense_share(conn, share)
+    except Exception as e:
+        print(f"Error inserting expense share: {e}")
+        return None
+    finally:
+        conn.close()
