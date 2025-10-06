@@ -427,6 +427,18 @@ def get_user_is_owed_by(group_id, user_id):
     finally:
         conn.close()
 
+def settle_user_pair(group_id, debtor_id, creditor_id):
+    """Settle debts between two users in a group."""
+    conn = get_db_connection()
+    try:
+        shares_paid = db.settle_user_pair(conn, group_id, debtor_id, creditor_id)
+        return shares_paid
+    except Exception as e:
+        print(f"Error settling debts between users: {e}")
+        return False
+    finally:
+        conn.close()
+
 def get_user_by_username(username):
     """Fetch a user by username (wrapper over DB layer)."""
     conn = get_db_connection()

@@ -487,6 +487,33 @@ def get_user_is_owed_by(conn, group_id, user_id):
         })
     return results
 
+def settle_user_pair(conn, group_id, debtor_id, creditor_id):
+    """
+    Mark all shares between debtor and creditor as paid.
+    """
+    now = datetime.datetime.now()
+    with conn:
+        cur = conn.execute(
+            '''
+            UPDATE expense_shares AS es
+            SET is_paid = 1,
+                updated_at = ?
+            WHERE es.is_paid = 0
+              AND es.id IN (
+                SELECT es2.id
+                FROM expense_shares es2
+                JOIN expenses e2 ON e2.id = es2.expense_id
+                WHERE e2.group_id = ?
+                  AND (
+                        (es2.user_id = ? AND e2.paid_by = ?)  -- debtor -> creditor
+                     OR (es2.user_id = ? AND e2.paid_by = ?)  -- creditor -> debtor
+                  )
+              )
+            ''',
+            (now, group_id, debtor_id, creditor_id, creditor_id, debtor_id)
+        )
+        return cur.rowcount  # Number of shares marked as paid
+
 def initialize_db(db_path='expenses.db'):
     """Initialize the database with all tables"""
     conn = connect_db(db_path)

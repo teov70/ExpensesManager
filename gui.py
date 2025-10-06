@@ -399,7 +399,8 @@ class ExpenseManagerApp:
                 messagebox.showerror("Error", "Failed to delete group.")
 
         self.load_groups_listbox(self.all_groups_listbox)
-
+        self.all_groups_listbox.bind("<Double-Button-1>", lambda _e: access_selected_group())
+        
         tk.Button(frame, text="Open Selected", command=access_selected_group,
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         tk.Button(frame, text="Delete Selected", command=delete_selected_group,
@@ -456,7 +457,7 @@ class ExpenseManagerApp:
                     shares = app.get_expense_shares(expense.id)
                     unpaid = sum(share.amount for share in shares if not share.is_paid)
                     
-                    owed_summary = f"{payer} is owed:" if unpaid > 0 else ""
+                    owed_summary = f"{payer} is owed:" if unpaid > 0 else "Expense is settled"
                     owed_total = f"{unpaid:6.2f}€" if unpaid > 0 else ""
 
                     display = f" {expense.date}  {desc} | {payer} paid: {amount} | {owed_summary} {owed_total}"
@@ -912,6 +913,7 @@ class ExpenseManagerApp:
         members = app.get_group_members(group_id)
         member_labels = [f"{u.username} ({u.first_name} {u.last_name})" for u in members]
         label_to_uid  = {lab: u.id for lab, u in zip(member_labels, members)}
+        uid_to_name   = {u.id: u.username for u in members}
 
         tk.Label(frame, text="User Balances", bg=BG_COLOR, fg=FG_COLOR,
                 font=FONT).pack(pady=10)
@@ -928,10 +930,11 @@ class ExpenseManagerApp:
                             font=FONT, selectbackground=OH_COLOR)
         listbox.pack(pady=5)
 
+        row_map = []
+
         def refresh(*_):
             uid = label_to_uid[user_var.get()]
 
-            # lists of dicts
             owed_to_user = app.get_user_is_owed_by(group_id, uid)   # others → user
             user_owes    = app.get_user_debts(group_id, uid)        # user → others
 
@@ -947,17 +950,19 @@ class ExpenseManagerApp:
             )
 
             # --- per‑user breakdown ---
-            listbox.delete(0, tk.END)
             # merge both lists into a dict keyed by other‑user ID
             combined = {}
             for d in user_owes:
-                combined.setdefault(d["user_id"], {"name": d["username"], "owes": 0, "owed": 0})
+                combined.setdefault(d["user_id"], {"username": d["username"], "owes": 0, "owed": 0})
                 combined[d["user_id"]]["owes"] = d["amount"]
             for d in owed_to_user:
-                combined.setdefault(d["user_id"], {"name": d["username"], "owes": 0, "owed": 0})
+                combined.setdefault(d["user_id"], {"username": d["username"], "owes": 0, "owed": 0})
                 combined[d["user_id"]]["owed"] = d["amount"]
 
-            for info in combined.values():
+            listbox.delete(0, tk.END)
+            row_map.clear()
+
+            for other_id, info in sorted(combined.items(), key=lambda kv: kv[1]["username"].lower()):
                 diff = info["owed"] - info["owes"]
                 if diff > 0:
                     msg = f"They owe {diff:.2f}€"
@@ -965,17 +970,55 @@ class ExpenseManagerApp:
                     msg = f"You owe {abs(diff):.2f}€"
                 else:
                     msg = "Settled"
-                indent = "   "
-                listbox.insert(tk.END,
-                    f"{indent}{info['name']:<15}  {msg}")
 
-        # trigger refresh on dropdown change
+                listbox.insert(tk.END, f"   {info['username']:<15} {msg}")
+                row_map.append({"other_id": other_id, "diff": diff})
+
+        def on_settle_selected():
+            if not listbox.curselection():
+                messagebox.showerror("No selection", "Pick a person in the list first.")
+                return
+
+            idx = int(listbox.curselection()[0])
+            pair = row_map[idx]
+            uid  = label_to_uid[user_var.get()]
+
+            if abs(pair["diff"]) < 1e-9:
+                messagebox.showinfo("Already settled", "There is nothing to settle with this person.")
+                return
+
+            debtor_id, creditor_id = uid, pair["other_id"]
+
+            other_name = uid_to_name[pair["other_id"]]
+            amount = abs(pair["diff"])
+            if not messagebox.askyesno(
+                "Confirm settlement",
+                f"This will mark all unpaid shares between {uid_to_name[uid]} and {other_name} as PAID.\n"
+                f"Net being settled now: {amount:.2f}€\n\nProceed?"
+            ):
+                return
+
+            changed = app.settle_user_pair(group_id, debtor_id, creditor_id)
+            if not changed:
+                messagebox.showerror("Not settled", "Could not settle; nothing changed or an error occurred.")
+            else:
+                messagebox.showinfo("Settled", f"Marked {changed} share(s) as paid.")
+                refresh()
+
+        # refresh when user changes
         user_var.trace_add("write", refresh)
         refresh()
 
-        tk.Button(frame, text="Back",
+        # Action row
+        btn_row = tk.Frame(frame, bg=BG_COLOR); btn_row.pack(pady=8)
+        tk.Button(btn_row, text="Settle with Selected", command=on_settle_selected,
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
+        tk.Button(btn_row, text="Back",
                 command=lambda: self.open_dynamic_frame("selected_group", group_id=group_id),
-                bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=8)
+                bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
+
+        # nice shortcut: double-click a row to settle
+        listbox.bind("<Double-Button-1>", lambda _e: on_settle_selected())
 
         return frame
 
