@@ -400,7 +400,7 @@ class ExpenseManagerApp:
 
         self.load_groups_listbox(self.all_groups_listbox)
         self.all_groups_listbox.bind("<Double-Button-1>", lambda _e: access_selected_group())
-        
+
         tk.Button(frame, text="Open Selected", command=access_selected_group,
                   bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(pady=5)
         tk.Button(frame, text="Delete Selected", command=delete_selected_group,
@@ -495,6 +495,15 @@ class ExpenseManagerApp:
             expense_id = expense_ids[idx]
             self.open_dynamic_frame("update_expense", group_id=group_id, expense_id=expense_id)
 
+        def open_group_balances():
+            if not app.get_group_members(group_id):
+                messagebox.showerror(
+                    "Error",
+                    "Group has no members - add users first."
+                )
+                return
+            self.open_dynamic_frame("group_balances", group_id=group_id)
+
         tk.Label(frame, text="All Expenses", bg=BG_COLOR, fg=FG_COLOR, font=FONT).pack(pady=10)
 
         self.expenses_listbox = tk.Listbox(frame, width=85, bg=BG_COLOR, fg=FG_COLOR, font=FONT, selectbackground=OH_COLOR)
@@ -518,7 +527,7 @@ class ExpenseManagerApp:
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
         tk.Button(left_buttons, text="Delete Selected", command=delete_selected_expense,
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
-        tk.Button(left_buttons, text="User Balances", command=lambda: self.open_dynamic_frame("group_balances", group_id=group_id),
+        tk.Button(left_buttons, text="User Balances", command=open_group_balances,
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="left", padx=5)
         tk.Button(right_buttons, text="Back", command=lambda: self.show_frame("all_groups"),
                 bg=BG_COLOR, fg=FG_COLOR, font=FONT, activebackground=OH_COLOR).pack(side="right", padx=5)
